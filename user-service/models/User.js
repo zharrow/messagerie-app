@@ -51,6 +51,21 @@ class User {
   static async verifyPassword(plainPassword, hashedPassword) {
     return bcrypt.compare(plainPassword, hashedPassword);
   }
+
+  static async findAll(excludeUserId = null) {
+    let query = `SELECT id, email, first_name, last_name, created_at FROM users`;
+    const params = [];
+
+    if (excludeUserId) {
+      query += ` WHERE id != $1`;
+      params.push(excludeUserId);
+    }
+
+    query += ` ORDER BY first_name, last_name`;
+
+    const result = await pool.query(query, params);
+    return result.rows;
+  }
 }
 
 module.exports = User;

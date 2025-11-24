@@ -87,6 +87,18 @@ const userController = {
     });
   },
 
+  // GET /users - List all users
+  async listUsers(req, res) {
+    try {
+      const currentUserId = req.user?.id;
+      const users = await User.findAll(currentUserId);
+      res.json(users);
+    } catch (error) {
+      console.error('List users error:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  },
+
   // POST /internal/verify-credentials
   async verifyCredentials(req, res) {
     try {

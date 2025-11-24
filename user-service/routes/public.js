@@ -10,6 +10,7 @@ router.get('/health', userController.health);
 router.post('/register', userController.register);
 
 // Protected routes - auth required
+router.get('/', authMiddleware, userController.listUsers);
 router.get('/:id', authMiddleware, userController.getUser);
 router.put('/:id', authMiddleware, userController.updateUser);
 
