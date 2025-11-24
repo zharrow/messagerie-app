@@ -39,10 +39,24 @@ export const disconnectSocket = () => {
 
 export const getSocket = (): Socket | null => socket;
 
+// Attachment interface
+interface Attachment {
+  filename: string;
+  originalName: string;
+  url: string;
+  mimeType: string;
+  size: number;
+}
+
 // Socket event helpers
-export const sendMessage = (conversationId: string, content: string, attachments?: string[]) => {
+export const sendMessage = (
+  conversationId: string,
+  content: string,
+  attachments?: Attachment[],
+  replyTo?: string
+) => {
   if (socket) {
-    socket.emit('send_message', { conversationId, content, attachments });
+    socket.emit('send_message', { conversationId, content, attachments, replyTo });
   }
 };
 
@@ -73,6 +87,32 @@ export const joinConversation = (conversationId: string) => {
 export const leaveConversation = (conversationId: string) => {
   if (socket) {
     socket.emit('leave_conversation', { conversationId });
+  }
+};
+
+// Reaction helpers
+export const addReaction = (conversationId: string, messageId: string, emoji: string) => {
+  if (socket) {
+    socket.emit('add_reaction', { conversationId, messageId, emoji });
+  }
+};
+
+export const removeReaction = (conversationId: string, messageId: string, emoji: string) => {
+  if (socket) {
+    socket.emit('remove_reaction', { conversationId, messageId, emoji });
+  }
+};
+
+// Edit/Delete helpers
+export const editMessage = (conversationId: string, messageId: string, content: string) => {
+  if (socket) {
+    socket.emit('edit_message', { conversationId, messageId, content });
+  }
+};
+
+export const deleteMessage = (conversationId: string, messageId: string) => {
+  if (socket) {
+    socket.emit('delete_message', { conversationId, messageId });
   }
 };
 

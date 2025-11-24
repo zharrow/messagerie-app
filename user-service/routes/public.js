@@ -14,4 +14,9 @@ router.get('/', authMiddleware, userController.listUsers);
 router.get('/:id', authMiddleware, userController.getUser);
 router.put('/:id', authMiddleware, userController.updateUser);
 
+// Profile routes
+router.get('/:id/profile', authMiddleware, userController.getProfile);
+router.put('/:id/profile', authMiddleware, userController.updateProfile);
+router.put('/:id/status', authMiddleware, userController.updateStatus);
+
 module.exports = router;

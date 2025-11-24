@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { messagesApi, userApi } from '@/services/api';
 import { getSocket, sendMessage as socketSendMessage, startTyping, stopTyping, markMessagesRead, joinConversation } from '@/services/socket';
@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import AvatarStatus from '@/components/ui/AvatarStatus';
 import SplitText from '@/components/ui/SplitText';
 import ShinyText from '@/components/ui/ShinyText';
-import { LogOut, Send, Plus, Users, X, MessageCircle } from 'lucide-react';
+import { LogOut, Send, Plus, Users, X, MessageCircle, Image, Clapperboard, Search } from 'lucide-react';
 
 interface User {
   id: number;
@@ -48,6 +48,12 @@ const Chat = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [usersCache, setUsersCache] = useState<Map<number, User>>(new Map());
+
+  // GIF picker state
+  const [showGifPicker, setShowGifPicker] = useState(false);
+  const [gifSearchQuery, setGifSearchQuery] = useState('');
+  const [gifResults, setGifResults] = useState<any[]>([]);
+  const [loadingGifs, setLoadingGifs] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -219,6 +225,69 @@ const Chat = () => {
         stopTyping(selectedConversation._id);
       }, 2000);
     }
+  };
+
+  // Search GIFs using Tenor API
+  const searchGifs = useCallback(async (query: string) => {
+    if (query.length < 2) {
+      setGifResults([]);
+      return;
+    }
+    setLoadingGifs(true);
+    try {
+      const apiKey = 'AIzaSyAyimkuYQYF_FXVALexPuGQctUWRURdCYQ';
+      const limit = 20;
+      const response = await fetch(
+        `https://tenor.googleapis.com/v2/search?q=${encodeURIComponent(query)}&key=${apiKey}&limit=${limit}&media_filter=gif`
+      );
+      const data = await response.json();
+      setGifResults(data.results || []);
+    } catch (error) {
+      console.error('Failed to search GIFs:', error);
+      setGifResults([]);
+    } finally {
+      setLoadingGifs(false);
+    }
+  }, []);
+
+  // Load trending GIFs on mount
+  useEffect(() => {
+    const loadTrendingGifs = async () => {
+      if (!showGifPicker) return;
+      setLoadingGifs(true);
+      try {
+        const apiKey = 'AIzaSyAyimkuYQYF_FXVALexPuGQctUWRURdCYQ';
+        const limit = 20;
+        const response = await fetch(
+          `https://tenor.googleapis.com/v2/featured?key=${apiKey}&limit=${limit}&media_filter=gif`
+        );
+        const data = await response.json();
+        setGifResults(data.results || []);
+      } catch (error) {
+        console.error('Failed to load trending GIFs:', error);
+      } finally {
+        setLoadingGifs(false);
+      }
+    };
+    if (showGifPicker && gifResults.length === 0 && !gifSearchQuery) {
+      loadTrendingGifs();
+    }
+  }, [showGifPicker, gifResults.length, gifSearchQuery]);
+
+  // Debounce GIF search
+  useEffect(() => {
+    if (!gifSearchQuery) return;
+    const debounce = setTimeout(() => searchGifs(gifSearchQuery), 500);
+    return () => clearTimeout(debounce);
+  }, [gifSearchQuery, searchGifs]);
+
+  // Send GIF as message
+  const handleSendGif = (gifUrl: string) => {
+    if (!selectedConversation) return;
+    socketSendMessage(selectedConversation._id, gifUrl);
+    setShowGifPicker(false);
+    setGifSearchQuery('');
+    setGifResults([]);
   };
 
   // Start conversation with user
@@ -425,7 +494,7 @@ const Chat = () => {
             </div>
 
             {/* Messages */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 space-y-4">
               {selectedConversation.messages?.map((message, index) => {
                 const isOwn = message.from === user?.id;
                 const isNew = index === selectedConversation.messages.length - 1;
@@ -442,7 +511,14 @@ const Chat = () => {
                           : 'bg-muted'
                       }`}
                     >
-                      {isNew && !isOwn ? (
+                      {message.content.match(/^https?:\/\/.*\.(gif|tenor\.com.*)/i) ? (
+                        <img
+                          src={message.content}
+                          alt="GIF"
+                          className="max-w-full rounded-lg max-h-60 object-cover"
+                          loading="lazy"
+                        />
+                      ) : isNew && !isOwn ? (
                         <SplitText
                           text={message.content}
                           delay={30}
@@ -473,6 +549,14 @@ const Chat = () => {
             {/* Input */}
             <div className="p-4 border-t">
               <div className="flex gap-2">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setShowGifPicker(!showGifPicker)}
+                  title="Envoyer un GIF"
+                >
+                  <Clapperboard className="h-5 w-5" />
+                </Button>
                 <Input
                   placeholder="Écrivez un message..."
                   value={messageInput}
@@ -493,6 +577,90 @@ const Chat = () => {
           </div>
         )}
       </div>
+
+      {/* GIF Picker Modal */}
+      {showGifPicker && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-background rounded-lg shadow-lg w-full max-w-2xl mx-4 h-[600px] flex flex-col">
+            {/* Header */}
+            <div className="flex items-center justify-between p-4 border-b">
+              <h2 className="text-lg font-semibold">Choisir un GIF</h2>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => {
+                  setShowGifPicker(false);
+                  setGifSearchQuery('');
+                  setGifResults([]);
+                }}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+
+            {/* Search */}
+            <div className="p-4 border-b">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                <Input
+                  placeholder="Rechercher un GIF..."
+                  className="pl-9"
+                  value={gifSearchQuery}
+                  onChange={(e) => setGifSearchQuery(e.target.value)}
+                  autoFocus
+                />
+              </div>
+            </div>
+
+            {/* GIF Grid */}
+            <div className="flex-1 overflow-y-auto p-4">
+              {loadingGifs ? (
+                <div className="flex items-center justify-center h-full">
+                  <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" />
+                </div>
+              ) : gifResults.length > 0 ? (
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                  {gifResults.map((gif) => {
+                    const gifUrl = gif.media_formats?.gif?.url || gif.media_formats?.tinygif?.url;
+                    return (
+                      <button
+                        key={gif.id}
+                        onClick={() => handleSendGif(gifUrl)}
+                        className="relative aspect-square rounded-lg overflow-hidden hover:opacity-80 transition-opacity bg-muted"
+                      >
+                        <img
+                          src={gifUrl}
+                          alt={gif.content_description || 'GIF'}
+                          className="w-full h-full object-cover"
+                          loading="lazy"
+                        />
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="flex items-center justify-center h-full text-muted-foreground">
+                  <div className="text-center">
+                    <Clapperboard className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p>
+                      {gifSearchQuery
+                        ? 'Aucun GIF trouvé'
+                        : 'Recherchez un GIF ou parcourez les tendances'}
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="p-3 border-t bg-muted/30">
+              <p className="text-xs text-muted-foreground text-center">
+                Propulsé par Tenor
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

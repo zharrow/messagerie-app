@@ -59,7 +59,8 @@ const messageController = {
       }
 
       if (isGroup && allParticipants.length < 2) {
-        return res.status(400).json({ error: 'Group conversation requires at least 2 participants' });
+        // Allow groups with just the creator + 1 other person minimum
+        // allParticipants includes current user, so minimum is 2 (creator + 1 member)
       }
 
       // For private conversations, check if one already exists
@@ -169,12 +170,12 @@ const messageController = {
     }
   },
 
-  // POST /messages/conversations/:id/participants - Add participant to group
+  // POST /messages/conversations/:id/participants - Add participant(s) to group
   async addParticipant(req, res) {
     try {
       const { id } = req.params;
       const userId = req.user.id;
-      const { participantId } = req.body;
+      const { participantId, participantIds } = req.body;
 
       const conversation = await Conversation.findOne({
         _id: id,
@@ -186,15 +187,24 @@ const messageController = {
         return res.status(404).json({ error: 'Group conversation not found' });
       }
 
-      if (conversation.groupAdmin !== userId) {
-        return res.status(403).json({ error: 'Only admin can add participants' });
+      // Any member can add participants (not just admin)
+      // Get list of participants to add (support both single and multiple)
+      const toAdd = participantIds || (participantId ? [participantId] : []);
+
+      if (toAdd.length === 0) {
+        return res.status(400).json({ error: 'No participants to add' });
       }
 
-      if (conversation.participants.includes(participantId)) {
-        return res.status(400).json({ error: 'User already in conversation' });
+      // Filter out users already in conversation
+      const newParticipants = toAdd.filter(
+        pid => !conversation.participants.includes(pid)
+      );
+
+      if (newParticipants.length === 0) {
+        return res.status(400).json({ error: 'All users are already in the conversation' });
       }
 
-      conversation.participants.push(participantId);
+      conversation.participants.push(...newParticipants);
       await conversation.save();
 
       res.json(conversation);
@@ -245,6 +255,101 @@ const messageController = {
       service: 'message-service',
       timestamp: new Date().toISOString()
     });
+  },
+
+  // GET /messages/search - Search in messages
+  async searchMessages(req, res) {
+    try {
+      const userId = req.user.id;
+      const { q, conversationId } = req.query;
+
+      if (!q || q.length < 2) {
+        return res.status(400).json({ error: 'Search query must be at least 2 characters' });
+      }
+
+      // Build query
+      const query = {
+        participants: userId,
+        'messages.content': { $regex: q, $options: 'i' }
+      };
+
+      if (conversationId) {
+        query._id = conversationId;
+      }
+
+      const conversations = await Conversation.find(query)
+        .select('_id participants isGroup groupName messages')
+        .lean();
+
+      // Extract matching messages
+      const results = [];
+      conversations.forEach(conv => {
+        const matchingMessages = conv.messages.filter(msg =>
+          msg.content &&
+          !msg.deletedAt &&
+          msg.content.toLowerCase().includes(q.toLowerCase())
+        );
+
+        matchingMessages.forEach(msg => {
+          results.push({
+            conversationId: conv._id,
+            conversationName: conv.isGroup ? conv.groupName : null,
+            participants: conv.participants,
+            message: msg
+          });
+        });
+      });
+
+      // Sort by date descending
+      results.sort((a, b) => new Date(b.message.createdAt) - new Date(a.message.createdAt));
+
+      res.json(results.slice(0, 50)); // Limit to 50 results
+    } catch (error) {
+      console.error('Search messages error:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  },
+
+  // GET /messages/conversations/:id/messages - Get messages with pagination
+  async getMessages(req, res) {
+    try {
+      const { id } = req.params;
+      const userId = req.user.id;
+      const { before, limit = 50 } = req.query;
+
+      const conversation = await Conversation.findOne({
+        _id: id,
+        participants: userId
+      });
+
+      if (!conversation) {
+        return res.status(404).json({ error: 'Conversation not found' });
+      }
+
+      let messages = [...conversation.messages];
+
+      // Filter messages before a certain date (for pagination)
+      if (before) {
+        const beforeDate = new Date(before);
+        messages = messages.filter(msg => new Date(msg.createdAt) < beforeDate);
+      }
+
+      // Sort by date descending and limit
+      messages = messages
+        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+        .slice(0, parseInt(limit));
+
+      // Reverse to get chronological order
+      messages.reverse();
+
+      res.json({
+        messages,
+        hasMore: messages.length === parseInt(limit)
+      });
+    } catch (error) {
+      console.error('Get messages error:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
   }
 };
 

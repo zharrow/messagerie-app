@@ -49,7 +49,7 @@ const initializeSocket = (server) => {
     // Handle sending messages
     socket.on('send_message', async (data) => {
       try {
-        const { conversationId, content, attachments } = data;
+        const { conversationId, content, attachments, replyTo } = data;
 
         const conversation = await Conversation.findOne({
           _id: conversationId,
@@ -65,13 +65,15 @@ const initializeSocket = (server) => {
           from: userId,
           content,
           attachments: attachments || [],
-          readBy: [userId],
+          readBy: [{ userId, readAt: new Date() }],
+          reactions: [],
+          replyTo: replyTo || null,
           createdAt: new Date()
         };
 
         conversation.messages.push(message);
         conversation.lastMessage = {
-          content,
+          content: content || (attachments?.length ? '📎 Fichier' : ''),
           from: userId,
           createdAt: message.createdAt
         };
@@ -89,6 +91,191 @@ const initializeSocket = (server) => {
       } catch (error) {
         console.error('Send message error:', error);
         socket.emit('error', { message: 'Failed to send message' });
+      }
+    });
+
+    // Handle adding reaction to message
+    socket.on('add_reaction', async (data) => {
+      try {
+        const { conversationId, messageId, emoji } = data;
+
+        const conversation = await Conversation.findOne({
+          _id: conversationId,
+          participants: userId
+        });
+
+        if (!conversation) {
+          socket.emit('error', { message: 'Conversation not found' });
+          return;
+        }
+
+        const message = conversation.messages.id(messageId);
+        if (!message) {
+          socket.emit('error', { message: 'Message not found' });
+          return;
+        }
+
+        // Check if user already reacted with this emoji
+        const existingReaction = message.reactions.find(
+          r => r.userId === userId && r.emoji === emoji
+        );
+
+        if (!existingReaction) {
+          message.reactions.push({
+            emoji,
+            userId,
+            createdAt: new Date()
+          });
+          await conversation.save();
+        }
+
+        // Broadcast to all participants
+        io.to(`conversation:${conversationId}`).emit('reaction_added', {
+          conversationId,
+          messageId,
+          reaction: { emoji, userId, createdAt: new Date() }
+        });
+
+      } catch (error) {
+        console.error('Add reaction error:', error);
+        socket.emit('error', { message: 'Failed to add reaction' });
+      }
+    });
+
+    // Handle removing reaction from message
+    socket.on('remove_reaction', async (data) => {
+      try {
+        const { conversationId, messageId, emoji } = data;
+
+        const conversation = await Conversation.findOne({
+          _id: conversationId,
+          participants: userId
+        });
+
+        if (!conversation) {
+          socket.emit('error', { message: 'Conversation not found' });
+          return;
+        }
+
+        const message = conversation.messages.id(messageId);
+        if (!message) {
+          socket.emit('error', { message: 'Message not found' });
+          return;
+        }
+
+        // Remove the reaction
+        message.reactions = message.reactions.filter(
+          r => !(r.userId === userId && r.emoji === emoji)
+        );
+        await conversation.save();
+
+        // Broadcast to all participants
+        io.to(`conversation:${conversationId}`).emit('reaction_removed', {
+          conversationId,
+          messageId,
+          emoji,
+          userId
+        });
+
+      } catch (error) {
+        console.error('Remove reaction error:', error);
+        socket.emit('error', { message: 'Failed to remove reaction' });
+      }
+    });
+
+    // Handle editing message
+    socket.on('edit_message', async (data) => {
+      try {
+        const { conversationId, messageId, content } = data;
+
+        const conversation = await Conversation.findOne({
+          _id: conversationId,
+          participants: userId
+        });
+
+        if (!conversation) {
+          socket.emit('error', { message: 'Conversation not found' });
+          return;
+        }
+
+        const message = conversation.messages.id(messageId);
+        if (!message) {
+          socket.emit('error', { message: 'Message not found' });
+          return;
+        }
+
+        // Only the sender can edit
+        if (message.from !== userId) {
+          socket.emit('error', { message: 'Not authorized to edit this message' });
+          return;
+        }
+
+        // Cannot edit deleted messages
+        if (message.deletedAt) {
+          socket.emit('error', { message: 'Cannot edit deleted message' });
+          return;
+        }
+
+        message.content = content;
+        message.editedAt = new Date();
+        await conversation.save();
+
+        // Broadcast to all participants
+        io.to(`conversation:${conversationId}`).emit('message_edited', {
+          conversationId,
+          messageId,
+          content,
+          editedAt: message.editedAt
+        });
+
+      } catch (error) {
+        console.error('Edit message error:', error);
+        socket.emit('error', { message: 'Failed to edit message' });
+      }
+    });
+
+    // Handle deleting message
+    socket.on('delete_message', async (data) => {
+      try {
+        const { conversationId, messageId } = data;
+
+        const conversation = await Conversation.findOne({
+          _id: conversationId,
+          participants: userId
+        });
+
+        if (!conversation) {
+          socket.emit('error', { message: 'Conversation not found' });
+          return;
+        }
+
+        const message = conversation.messages.id(messageId);
+        if (!message) {
+          socket.emit('error', { message: 'Message not found' });
+          return;
+        }
+
+        // Only the sender can delete
+        if (message.from !== userId) {
+          socket.emit('error', { message: 'Not authorized to delete this message' });
+          return;
+        }
+
+        // Soft delete
+        message.deletedAt = new Date();
+        message.content = '';
+        await conversation.save();
+
+        // Broadcast to all participants
+        io.to(`conversation:${conversationId}`).emit('message_deleted', {
+          conversationId,
+          messageId,
+          deletedAt: message.deletedAt
+        });
+
+      } catch (error) {
+        console.error('Delete message error:', error);
+        socket.emit('error', { message: 'Failed to delete message' });
       }
     });
 
@@ -124,9 +311,16 @@ const initializeSocket = (server) => {
         if (!conversation) return;
 
         let updated = false;
+        const readAt = new Date();
+
         conversation.messages.forEach(message => {
-          if (!message.readBy.includes(userId)) {
-            message.readBy.push(userId);
+          // Check if user already read this message
+          const alreadyRead = message.readBy.some(r =>
+            (typeof r === 'object' && r.userId === userId) || r === userId
+          );
+
+          if (!alreadyRead) {
+            message.readBy.push({ userId, readAt });
             updated = true;
           }
         });
@@ -134,10 +328,11 @@ const initializeSocket = (server) => {
         if (updated) {
           await conversation.save();
 
-          // Notify other participants
+          // Notify other participants with timestamp
           socket.to(`conversation:${conversationId}`).emit('messages_read', {
             conversationId,
-            userId
+            userId,
+            readAt
           });
         }
       } catch (error) {

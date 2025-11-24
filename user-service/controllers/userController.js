@@ -87,6 +87,72 @@ const userController = {
     });
   },
 
+  // GET /users/:id/profile - Get user profile
+  async getProfile(req, res) {
+    try {
+      const { id } = req.params;
+
+      const user = await User.getProfile(id);
+      if (!user) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+
+      res.json(user);
+    } catch (error) {
+      console.error('Get profile error:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  },
+
+  // PUT /users/:id/profile - Update user profile (photo, bio)
+  async updateProfile(req, res) {
+    try {
+      const { id } = req.params;
+      const { profile_photo_url, bio } = req.body;
+
+      // Verify user is updating their own profile
+      if (req.user && req.user.id !== parseInt(id)) {
+        return res.status(403).json({ error: 'Not authorized to update this profile' });
+      }
+
+      const user = await User.updateProfile(id, { profile_photo_url, bio });
+      if (!user) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+
+      res.json(user);
+    } catch (error) {
+      console.error('Update profile error:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  },
+
+  // PUT /users/:id/status - Update user status
+  async updateStatus(req, res) {
+    try {
+      const { id } = req.params;
+      const { status, status_message } = req.body;
+
+      // Verify user is updating their own status
+      if (req.user && req.user.id !== parseInt(id)) {
+        return res.status(403).json({ error: 'Not authorized to update this status' });
+      }
+
+      const user = await User.updateStatus(id, { status, status_message });
+      if (!user) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+
+      res.json(user);
+    } catch (error) {
+      console.error('Update status error:', error);
+      if (error.message.includes('Invalid status')) {
+        return res.status(400).json({ error: error.message });
+      }
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  },
+
   // GET /users - List all users
   async listUsers(req, res) {
     try {

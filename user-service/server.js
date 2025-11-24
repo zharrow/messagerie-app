@@ -3,6 +3,7 @@ const cors = require('cors');
 const { initDatabase } = require('./config/database');
 const publicRoutes = require('./routes/public');
 const internalRoutes = require('./routes/internal');
+const User = require('./models/User');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -17,7 +18,11 @@ app.use('/internal', internalRoutes);
 
 // Initialize database and start server
 initDatabase()
-  .then(() => {
+  .then(async () => {
+    // Initialize profile columns if they don't exist
+    await User.initializeProfileColumns();
+    console.log('Profile columns initialized');
+
     app.listen(PORT, () => {
       console.log(`User Service running on port ${PORT}`);
     });

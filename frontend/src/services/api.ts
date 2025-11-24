@@ -97,6 +97,21 @@ export const userApi = {
     const response = await api.put(`/users/${id}`, data);
     return response.data;
   },
+
+  getProfile: async (id: number) => {
+    const response = await api.get(`/users/${id}/profile`);
+    return response.data;
+  },
+
+  updateProfile: async (id: number, data: { profile_photo_url?: string; bio?: string }) => {
+    const response = await api.put(`/users/${id}/profile`, data);
+    return response.data;
+  },
+
+  updateStatus: async (id: number, data: { status: string; status_message?: string }) => {
+    const response = await api.put(`/users/${id}/status`, data);
+    return response.data;
+  },
 };
 
 // Messages API
@@ -140,10 +155,50 @@ export const messagesApi = {
     return response.data;
   },
 
+  addParticipants: async (conversationId: string, participantIds: number[]) => {
+    const response = await api.post(`/messages/conversations/${conversationId}/participants`, {
+      participantIds,
+    });
+    return response.data;
+  },
+
   removeParticipant: async (conversationId: string, participantId: number) => {
     const response = await api.delete(
       `/messages/conversations/${conversationId}/participants/${participantId}`
     );
+    return response.data;
+  },
+
+  // Upload files
+  uploadFiles: async (files: File[]) => {
+    const formData = new FormData();
+    files.forEach(file => formData.append('files', file));
+
+    const response = await api.post('/messages/upload', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  },
+
+  // Search messages
+  searchMessages: async (query: string, conversationId?: string) => {
+    const params = new URLSearchParams({ q: query });
+    if (conversationId) {
+      params.append('conversationId', conversationId);
+    }
+    const response = await api.get(`/messages/search?${params}`);
+    return response.data;
+  },
+
+  // Get messages with pagination
+  getMessages: async (conversationId: string, before?: string, limit = 50) => {
+    const params = new URLSearchParams({ limit: limit.toString() });
+    if (before) {
+      params.append('before', before);
+    }
+    const response = await api.get(`/messages/conversations/${conversationId}/messages?${params}`);
     return response.data;
   },
 };
