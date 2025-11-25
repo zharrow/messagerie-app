@@ -186,6 +186,7 @@ const initializeSocket = (server) => {
     // Handle editing message
     socket.on('edit_message', async (data) => {
       try {
+        console.log(`[EDIT] User ${userId} editing message ${data.messageId} in conversation ${data.conversationId}`);
         const { conversationId, messageId, content } = data;
 
         const conversation = await Conversation.findOne({
@@ -219,6 +220,7 @@ const initializeSocket = (server) => {
         message.content = content;
         message.editedAt = new Date();
         await conversation.save();
+        console.log(`[EDIT] Message ${messageId} edited successfully, broadcasting...`);
 
         // Broadcast to all participants
         io.to(`conversation:${conversationId}`).emit('message_edited', {
@@ -237,6 +239,7 @@ const initializeSocket = (server) => {
     // Handle deleting message
     socket.on('delete_message', async (data) => {
       try {
+        console.log(`[DELETE] User ${userId} deleting message ${data.messageId} in conversation ${data.conversationId}`);
         const { conversationId, messageId } = data;
 
         const conversation = await Conversation.findOne({
@@ -261,10 +264,10 @@ const initializeSocket = (server) => {
           return;
         }
 
-        // Soft delete
+        // Soft delete - only mark as deleted, keep content for history
         message.deletedAt = new Date();
-        message.content = '';
         await conversation.save();
+        console.log(`[DELETE] Message ${messageId} deleted successfully, broadcasting...`);
 
         // Broadcast to all participants
         io.to(`conversation:${conversationId}`).emit('message_deleted', {

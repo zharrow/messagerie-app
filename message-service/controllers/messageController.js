@@ -28,10 +28,15 @@ const messageController = {
       const conversation = await Conversation.findOne({
         _id: id,
         participants: userId
-      });
+      }).lean();
 
       if (!conversation) {
         return res.status(404).json({ error: 'Conversation not found' });
+      }
+
+      // Filter out deleted messages
+      if (conversation.messages) {
+        conversation.messages = conversation.messages.filter(msg => !msg.deletedAt);
       }
 
       res.json(conversation);

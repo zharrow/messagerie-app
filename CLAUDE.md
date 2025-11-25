@@ -124,8 +124,25 @@ http://localhost:8080
   - `frontend/src/components/ui/AvatarStatus.tsx` - Avatar with online indicator
 - **Features:**
   - Real-time messaging with WebSocket
-  - Emoji reactions (👍 ❤️ 😂 😮 😢 🙏)
-  - Message editing and deletion
+  - **GIF support:**
+    - GIF search via Tenor API (Google)
+    - Modal picker with search bar
+    - Trending GIFs by default
+    - Automatic GIF detection and display in messages
+    - Debounced search (500ms)
+  - **Message editing and deletion:**
+    - Edit/delete buttons visible on hover for own messages
+    - Inline editing with Save/Cancel buttons (Enter to save, Escape to cancel)
+    - Delete confirmation dialog
+    - Real-time updates via WebSocket (message_edited, message_deleted events)
+  - **Emoji reactions:**
+    - 6 emoji reactions available: 👍 ❤️ 😂 😮 😢 🙏
+    - Reaction button appears on message hover (SmilePlus icon)
+    - Emoji picker popup with all available reactions
+    - Reactions grouped by emoji with count display
+    - Highlighted style when user has reacted
+    - Click to toggle reaction (add/remove)
+    - Real-time updates via WebSocket (reaction_added, reaction_removed events)
   - Reply to messages (quote)
   - File/image upload and preview
   - Search messages
@@ -134,19 +151,25 @@ http://localhost:8080
   - Typing indicators
   - Notification sounds (toggleable)
   - User online status
-  - Smooth animations
+  - Smooth animations with opacity transitions
+  - **UI improvements:**
+    - Time displayed only on last message of each group (same sender)
+    - Fixed horizontal scrollbar issue (overflow-x-hidden)
+    - Hover effects with group class for better UX
   - **Group conversations:**
     - Create groups with 1+ members
     - Dynamic member management (add/remove)
     - Group settings modal with member list
     - New members get full message history
   - **Message display (Messenger-style):**
-    - Avatar and username above received messages
-    - Color-coded messages:
-      - Sender: Primary theme color
-      - Receiver (private): Slate gray
-      - Group: Unique color per user (10 color palette)
-    - Larger, more readable message bubbles
+    - Clean, minimal interface
+    - Rounded message bubbles
+    - Primary color for sent messages
+    - Muted background for received messages
+    - Conditional timestamp display
+    - Edit/delete buttons on hover (left side for own messages)
+    - Reaction button on hover (center bottom for own messages, right side for received)
+    - Reactions displayed below message bubble with count
 
 ## Authentication Flow
 

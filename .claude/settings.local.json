@@ -10,7 +10,11 @@
       "Bash(docker-compose build:*)",
       "Bash(npm run build:*)",
       "Bash(npm install:*)",
-      "Bash(npm run dev:*)"
+      "Bash(npm run dev:*)",
+      "Bash(mkdir:*)",
+      "Bash(timeout 30 docker-compose logs:*)",
+      "Bash(docker-compose restart:*)",
+      "Bash(timeout 60 docker-compose logs:*)"
     ],
     "deny": [],
     "ask": []
