@@ -116,12 +116,20 @@ http://localhost:8080
   - `user_online/offline` - User presence
 
 ### Frontend (React + TypeScript + Vite)
+- **Architecture:**
+  - **Refactored from monolithic Chat.tsx (939 lines) to modular structure**
+  - Custom hooks for business logic separation
+  - Reusable UI components
+  - Type-safe with TypeScript interfaces
 - **Key files:**
   - `frontend/src/contexts/AuthContext.tsx` - Global auth state
   - `frontend/src/services/api.ts` - Axios with auto token refresh
   - `frontend/src/services/socket.ts` - Socket.io client with all event helpers
-  - `frontend/src/pages/Chat.tsx` - Main chat interface with all features
-  - `frontend/src/components/ui/AvatarStatus.tsx` - Avatar with online indicator
+  - `frontend/src/pages/Chat.tsx` - Main chat orchestrator (220 lines)
+  - **Hooks:** `useUserCache`, `useConversations`, `useSocketEvents`, `useMessages`, `useTypingIndicator`, `useGifSearch`
+  - **Components:** `Message`, `MessageList`, `MessageInput`, `ChatHeader`, `ConversationSidebar`, `GifPicker`, `UserListModal`, `DeleteMessageModal`
+  - **Utils:** `chatHelpers.ts` - Utility functions (isGifUrl, formatMessageTime, groupReactionsByEmoji, etc.)
+  - **Types:** `frontend/src/types/chat.ts` - Shared TypeScript interfaces
 - **Features:**
   - Real-time messaging with WebSocket
   - **GIF support:**
@@ -132,12 +140,14 @@ http://localhost:8080
     - Debounced search (500ms)
   - **Message editing and deletion:**
     - Edit/delete buttons visible on hover for own messages
-    - Inline editing with Save/Cancel buttons (Enter to save, Escape to cancel)
-    - Delete confirmation dialog
+    - Inline editing with improved UI (300-500px width)
+    - Save with Enter, Cancel with Escape
+    - Custom delete confirmation modal (replaces native alert)
     - Real-time updates via WebSocket (message_edited, message_deleted events)
+    - Soft delete in backend (deletedAt flag), filtered on load
   - **Emoji reactions:**
     - 6 emoji reactions available: 👍 ❤️ 😂 😮 😢 🙏
-    - Reaction button appears on message hover (SmilePlus icon)
+    - Reaction button on hover: center bottom for own messages, right side for received messages
     - Emoji picker popup with all available reactions
     - Reactions grouped by emoji with count display
     - Highlighted style when user has reacted
@@ -152,24 +162,19 @@ http://localhost:8080
   - Notification sounds (toggleable)
   - User online status
   - Smooth animations with opacity transitions
-  - **UI improvements:**
-    - Time displayed only on last message of each group (same sender)
+  - **UI improvements (Messenger-style):**
+    - Rounded message bubbles (rounded-2xl) with asymmetric corners
+    - Max width 450px with proper word wrapping (whitespace-pre-wrap break-words)
+    - Improved spacing: 1px between same-sender messages, 16px between groups
+    - Time displayed only on last message of each group
     - Fixed horizontal scrollbar issue (overflow-x-hidden)
     - Hover effects with group class for better UX
+    - Shadow and depth for better visual hierarchy
   - **Group conversations:**
     - Create groups with 1+ members
     - Dynamic member management (add/remove)
     - Group settings modal with member list
     - New members get full message history
-  - **Message display (Messenger-style):**
-    - Clean, minimal interface
-    - Rounded message bubbles
-    - Primary color for sent messages
-    - Muted background for received messages
-    - Conditional timestamp display
-    - Edit/delete buttons on hover (left side for own messages)
-    - Reaction button on hover (center bottom for own messages, right side for received)
-    - Reactions displayed below message bubble with count
 
 ## Authentication Flow
 
