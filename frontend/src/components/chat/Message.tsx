@@ -161,8 +161,8 @@ const Message = ({
             </div>
           )}
 
-          {/* Emoji picker button */}
-          {!isEditing && (
+          {/* Emoji picker button for own messages (centered below) */}
+          {!isEditing && isOwn && (
             <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
               <Button
                 variant="ghost"
@@ -192,9 +192,9 @@ const Message = ({
           )}
         </div>
 
-        {/* Reaction button for received messages */}
+        {/* Reaction button for received messages (right side) */}
         {!isOwn && !isEditing && (
-          <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+          <div className="opacity-0 group-hover:opacity-100 transition-opacity relative">
             <Button
               variant="ghost"
               size="icon"
@@ -204,6 +204,21 @@ const Message = ({
             >
               <SmilePlus className="h-4 w-4" />
             </Button>
+
+            {/* Emoji picker popup for received messages */}
+            {showEmojiPicker === message._id && (
+              <div className="absolute top-0 left-full ml-2 bg-background border rounded-lg shadow-lg p-2 flex gap-1 z-10">
+                {EMOJI_LIST.map((emoji) => (
+                  <button
+                    key={emoji}
+                    onClick={() => onReaction(message._id, emoji)}
+                    className="w-8 h-8 hover:bg-muted rounded transition-colors text-lg"
+                  >
+                    {emoji}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>
