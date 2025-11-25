@@ -1,5 +1,6 @@
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { ConfettiButton } from '@/components/ui/ConfettiButton';
 import { Send, Clapperboard } from 'lucide-react';
 
 interface MessageInputProps {
@@ -32,6 +33,7 @@ const MessageInput = ({
         >
           <Clapperboard className="h-5 w-5" />
         </Button>
+        <ConfettiButton />
         <Input
           placeholder="Écrivez un message..."
           value={messageInput}

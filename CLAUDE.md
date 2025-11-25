@@ -127,7 +127,7 @@ http://localhost:8080
   - `frontend/src/services/socket.ts` - Socket.io client with all event helpers
   - `frontend/src/pages/Chat.tsx` - Main chat orchestrator (220 lines)
   - **Hooks:** `useUserCache`, `useConversations`, `useSocketEvents`, `useMessages`, `useTypingIndicator`, `useGifSearch`
-  - **Components:** `Message`, `MessageList`, `MessageInput`, `ChatHeader`, `ConversationSidebar`, `GifPicker`, `UserListModal`, `DeleteMessageModal`
+  - **Components:** `Message`, `MessageList`, `MessageInput`, `ChatHeader`, `ConversationSidebar`, `GifPicker`, `UserListModal`, `DeleteMessageModal`, `ConfettiButton`
   - **Utils:** `chatHelpers.ts` - Utility functions (isGifUrl, formatMessageTime, groupReactionsByEmoji, etc.)
   - **Types:** `frontend/src/types/chat.ts` - Shared TypeScript interfaces
 - **Features:**
@@ -170,6 +170,10 @@ http://localhost:8080
     - Fixed horizontal scrollbar issue (overflow-x-hidden)
     - Hover effects with group class for better UX
     - Shadow and depth for better visual hierarchy
+  - **Fun features:**
+    - Confetti button (canvas-confetti) - Side cannons celebration animation
+    - PartyPopper icon for celebrations
+    - 3-second animation with pastel colors
   - **Group conversations:**
     - Create groups with 1+ members
     - Dynamic member management (add/remove)
@@ -273,3 +277,23 @@ Regex: `/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/`
 - **Allowed types:** Images (jpeg, png, gif, webp, svg), Documents (pdf, doc, docx, xls, xlsx, txt), Archives (zip, rar)
 - **Storage:** `message-service/uploads/` directory
 - **URL pattern:** `/messages/uploads/{filename}`
+
+## Frontend Dependencies
+
+**Key packages:**
+- `react` + `react-dom` - UI framework
+- `typescript` - Type safety
+- `vite` - Build tool and dev server
+- `socket.io-client` - WebSocket client
+- `axios` - HTTP client with interceptors
+- `react-router-dom` - Routing
+- `lucide-react` - Icon library
+- `canvas-confetti` - Confetti animations
+- `@types/canvas-confetti` - TypeScript types
+- `tailwindcss` - Utility-first CSS
+- `shadcn/ui` - UI component library
+
+**Development:**
+- `@vitejs/plugin-react` - React support for Vite
+- `tailwindcss-animate` - Animation utilities
+- `eslint` + `typescript-eslint` - Linting
