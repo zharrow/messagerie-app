@@ -82,6 +82,28 @@ const messageSchema = new mongoose.Schema({
     type: Date,
     default: null
   },
+  // E2EE fields
+  encrypted: {
+    type: Boolean,
+    default: false
+  },
+  // Encrypted payload for each recipient device
+  // Format: { "userId:deviceId": "encryptedData", ... }
+  encryptedPayloads: {
+    type: Map,
+    of: String,
+    default: null
+  },
+  // Nonce for encryption (if using authenticated encryption)
+  nonce: {
+    type: String,
+    default: null
+  },
+  // Sender's device ID
+  senderDeviceId: {
+    type: String,
+    default: null
+  },
   createdAt: {
     type: Date,
     default: Date.now

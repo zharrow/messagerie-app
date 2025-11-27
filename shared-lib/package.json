@@ -1,0 +1,22 @@
+{
+  "name": "@microservices/shared-lib",
+  "version": "1.0.0",
+  "description": "Shared utilities and middlewares for microservices",
+  "main": "index.js",
+  "scripts": {
+    "test": "jest"
+  },
+  "keywords": [
+    "microservices",
+    "shared",
+    "utilities"
+  ],
+  "author": "Florent",
+  "license": "MIT",
+  "dependencies": {
+    "morgan": "^1.10.0"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0"
+  }
+}

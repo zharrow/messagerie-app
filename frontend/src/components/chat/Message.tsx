@@ -1,9 +1,11 @@
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import SplitText from '@/components/ui/SplitText';
-import { Pencil, Trash2, SmilePlus } from 'lucide-react';
+import { Pencil, Trash2, SmilePlus, FileText, Download } from 'lucide-react';
 import { isGifUrl, formatMessageTime, groupReactionsByEmoji, EMOJI_LIST } from '@/utils/chatHelpers';
 import type { Message as MessageType } from '@/types/chat';
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost';
 
 interface MessageProps {
   message: MessageType;
@@ -15,6 +17,7 @@ interface MessageProps {
   hoveredMessageId: string | null;
   showEmojiPicker: string | null;
   userId?: number;
+  getMessageContent: (message: any) => string;
   onHover: (id: string | null) => void;
   onEdit: (id: string) => void;
   onDelete: (id: string) => void;
@@ -35,6 +38,7 @@ const Message = ({
   hoveredMessageId,
   showEmojiPicker,
   userId,
+  getMessageContent,
   onHover,
   onEdit,
   onDelete,
@@ -44,6 +48,14 @@ const Message = ({
   onReaction,
   onToggleEmojiPicker,
 }: MessageProps) => {
+  // Obtenir le contenu du message (déchiffré ou non)
+  const displayContent = getMessageContent(message);
+
+  // Helper pour construire l'URL complète des fichiers
+  const getFullUrl = (url: string) => {
+    if (url.startsWith('http')) return url;
+    return `${API_URL}${url}`;
+  };
   return (
     <div
       className={`flex ${isOwn ? 'justify-end' : 'justify-start'} group`}
@@ -100,34 +112,78 @@ const Message = ({
             </div>
           ) : (
             <div
-              className={`inline-block max-w-[450px] px-4 py-2.5 rounded-2xl shadow-sm ${
+              className={`inline-block max-w-[450px] px-4 py-2.5 rounded-2xl ${
                 isOwn
-                  ? 'bg-primary text-primary-foreground rounded-br-md'
-                  : 'bg-muted rounded-bl-md'
+                  ? 'bg-blue-600 text-white rounded-br-md'
+                  : 'bg-gray-200 text-gray-900 rounded-bl-md'
               }`}
             >
-              {isGifUrl(message.content) ? (
+              {/* Attachments */}
+              {message.attachments && message.attachments.length > 0 && (
+                <div className="space-y-2 mb-2">
+                  {message.attachments.map((attachment, idx) => {
+                    const isImage = attachment.mimeType?.startsWith('image/');
+                    const fullUrl = getFullUrl(attachment.url);
+                    return isImage ? (
+                      <img
+                        key={idx}
+                        src={fullUrl}
+                        alt={attachment.originalName}
+                        className="max-w-full rounded-lg max-h-60 object-cover cursor-pointer"
+                        loading="lazy"
+                        onClick={() => window.open(fullUrl, '_blank')}
+                      />
+                    ) : (
+                      <a
+                        key={idx}
+                        href={fullUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={`flex items-center gap-2 p-2 rounded-lg transition-colors ${
+                          isOwn
+                            ? 'bg-white/10 hover:bg-white/20'
+                            : 'bg-white/50 hover:bg-white/70'
+                        }`}
+                      >
+                        <FileText className="h-4 w-4 flex-shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">{attachment.originalName}</p>
+                          <p className="text-xs opacity-70">
+                            {(attachment.size / (1024 * 1024)).toFixed(2)} MB
+                          </p>
+                        </div>
+                        <Download className="h-4 w-4 flex-shrink-0" />
+                      </a>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Text content */}
+              {isGifUrl(displayContent) ? (
                 <img
-                  src={message.content}
+                  src={displayContent}
                   alt="GIF"
                   className="max-w-full rounded-lg max-h-60 object-cover"
                   loading="lazy"
                 />
               ) : isNew && !isOwn ? (
                 <SplitText
-                  text={message.content}
+                  text={displayContent}
                   delay={30}
                   duration={0.3}
                   from={{ opacity: 0, y: 10 }}
                   to={{ opacity: 1, y: 0 }}
                 />
               ) : (
-                <p className="whitespace-pre-wrap break-words leading-relaxed">{message.content}</p>
+                <p className="whitespace-pre-wrap break-words leading-relaxed">{displayContent}</p>
               )}
+
+              {/* Timestamp */}
               {isLastInGroup && (
                 <p
                   className={`text-[10px] mt-1 ${
-                    isOwn ? 'text-primary-foreground/60' : 'text-muted-foreground/70'
+                    isOwn ? 'text-white/70' : 'text-gray-600'
                   }`}
                 >
                   {formatMessageTime(message.createdAt)}
@@ -149,12 +205,12 @@ const Message = ({
                     onClick={() => onReaction(message._id, emoji)}
                     className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs transition-colors ${
                       userReacted
-                        ? 'bg-primary/20 border border-primary'
-                        : 'bg-muted hover:bg-muted/80 border border-transparent'
+                        ? 'bg-blue-100 border border-blue-500'
+                        : 'bg-gray-100 hover:bg-gray-200 border border-transparent'
                     }`}
                   >
                     <span>{emoji}</span>
-                    <span className="text-xs">{count}</span>
+                    <span className="text-xs text-gray-700">{count}</span>
                   </button>
                 );
               })}

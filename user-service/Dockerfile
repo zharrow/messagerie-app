@@ -8,8 +8,8 @@ RUN apk add --no-cache python3 make g++
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies
-RUN npm install --omit=dev
+# Install dependencies and rebuild native modules
+RUN npm install --omit=dev && npm rebuild bcrypt --build-from-source
 
 # Copy source code
 COPY . .

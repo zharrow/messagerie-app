@@ -48,15 +48,36 @@ interface Attachment {
   size: number;
 }
 
+// Encrypted message interface
+interface EncryptedMessageData {
+  encrypted: true;
+  encryptedPayloads: Record<string, string>;
+  nonce: string;
+  senderDeviceId: string;
+}
+
 // Socket event helpers
 export const sendMessage = (
   conversationId: string,
   content: string,
+  encryptedData?: EncryptedMessageData,
   attachments?: Attachment[],
   replyTo?: string
 ) => {
   if (socket) {
-    socket.emit('send_message', { conversationId, content, attachments, replyTo });
+    // Si des données chiffrées sont fournies, les envoyer
+    if (encryptedData) {
+      socket.emit('send_message', {
+        conversationId,
+        content, // Placeholder pour le serveur
+        ...encryptedData,
+        attachments,
+        replyTo
+      });
+    } else {
+      // Message en clair
+      socket.emit('send_message', { conversationId, content, attachments, replyTo });
+    }
   }
 };
 

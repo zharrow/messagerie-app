@@ -39,8 +39,9 @@ export function ConfettiButton() {
       size="icon"
       onClick={handleClick}
       title="Célébrer 🎉"
+      className="h-9 w-9 rounded-full hover:bg-gray-100"
     >
-      <PartyPopper className="h-5 w-5" />
+      <PartyPopper className="h-5 w-5 text-blue-600" />
     </Button>
   );
 }

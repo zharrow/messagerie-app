@@ -49,7 +49,7 @@ const initializeSocket = (server) => {
     // Handle sending messages
     socket.on('send_message', async (data) => {
       try {
-        const { conversationId, content, attachments, replyTo } = data;
+        const { conversationId, content, attachments, replyTo, encrypted, encryptedPayloads, nonce, senderDeviceId } = data;
 
         const conversation = await Conversation.findOne({
           _id: conversationId,
@@ -61,6 +61,7 @@ const initializeSocket = (server) => {
           return;
         }
 
+        // Créer le message (chiffré ou non)
         const message = {
           from: userId,
           content,
@@ -71,9 +72,18 @@ const initializeSocket = (server) => {
           createdAt: new Date()
         };
 
+        // Ajouter les champs de chiffrement si présents
+        if (encrypted && encryptedPayloads && nonce && senderDeviceId) {
+          message.encrypted = true;
+          message.encryptedPayloads = encryptedPayloads;
+          message.nonce = nonce;
+          message.senderDeviceId = senderDeviceId;
+          console.log(`[E2EE] Message chiffré envoyé par l'utilisateur ${userId} (appareil: ${senderDeviceId})`);
+        }
+
         conversation.messages.push(message);
         conversation.lastMessage = {
-          content: content || (attachments?.length ? '📎 Fichier' : ''),
+          content: encrypted ? '🔒 Message chiffré' : (content || (attachments?.length ? '📎 Fichier' : '')),
           from: userId,
           createdAt: message.createdAt
         };

@@ -11,6 +11,14 @@ export interface Reaction {
   createdAt: string;
 }
 
+export interface Attachment {
+  filename: string;
+  originalName: string;
+  url: string;
+  mimeType: string;
+  size: number;
+}
+
 export interface Message {
   _id: string;
   from: number;
@@ -18,6 +26,7 @@ export interface Message {
   createdAt: string;
   readBy: number[];
   reactions?: Reaction[];
+  attachments?: Attachment[];
 }
 
 export interface Conversation {
@@ -25,6 +34,7 @@ export interface Conversation {
   participants: number[];
   isGroup: boolean;
   groupName?: string;
+  groupAdmin?: number;
   messages: Message[];
   lastMessage?: {
     content: string;

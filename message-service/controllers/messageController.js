@@ -253,6 +253,35 @@ const messageController = {
     }
   },
 
+  // DELETE /messages/conversations/:id - Delete conversation (admin only for groups)
+  async deleteConversation(req, res) {
+    try {
+      const { id } = req.params;
+      const userId = req.user.id;
+
+      const conversation = await Conversation.findOne({
+        _id: id,
+        participants: userId
+      });
+
+      if (!conversation) {
+        return res.status(404).json({ error: 'Conversation not found' });
+      }
+
+      // For groups, only admin can delete
+      if (conversation.isGroup && conversation.groupAdmin !== userId) {
+        return res.status(403).json({ error: 'Only group admin can delete the group' });
+      }
+
+      await Conversation.deleteOne({ _id: id });
+
+      res.json({ message: 'Conversation deleted successfully' });
+    } catch (error) {
+      console.error('Delete conversation error:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  },
+
   // GET /messages/health
   health(req, res) {
     res.json({

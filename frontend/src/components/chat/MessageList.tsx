@@ -10,6 +10,8 @@ interface MessageListProps {
   editContent: string;
   hoveredMessageId: string | null;
   showEmojiPicker: string | null;
+  getMessageContent: (message: any) => string;
+  decryptMessages: (messages: any[]) => Promise<Map<string, string>>;
   onHover: (id: string | null) => void;
   onEdit: (id: string) => void;
   onDelete: (id: string) => void;
@@ -27,6 +29,8 @@ const MessageList = ({
   editContent,
   hoveredMessageId,
   showEmojiPicker,
+  getMessageContent,
+  decryptMessages,
   onHover,
   onEdit,
   onDelete,
@@ -38,12 +42,19 @@ const MessageList = ({
 }: MessageListProps) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  // Déchiffrer les messages au chargement
+  useEffect(() => {
+    if (conversation.messages && conversation.messages.length > 0) {
+      decryptMessages(conversation.messages);
+    }
+  }, [conversation.messages, decryptMessages]);
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [conversation.messages]);
 
   return (
-    <div className="flex-1 overflow-y-auto overflow-x-hidden p-6 space-y-1">
+    <div className="flex-1 overflow-y-auto overflow-x-hidden px-5 py-4 space-y-1 bg-white">
       {conversation.messages?.map((message, index) => {
         const isOwn = message.from === userId;
         const isNew = index === conversation.messages.length - 1;
@@ -65,6 +76,7 @@ const MessageList = ({
               hoveredMessageId={hoveredMessageId}
               showEmojiPicker={showEmojiPicker}
               userId={userId}
+              getMessageContent={getMessageContent}
               onHover={onHover}
               onEdit={onEdit}
               onDelete={onDelete}

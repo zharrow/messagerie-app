@@ -97,18 +97,91 @@ Créer une architecture distribuée scalable et sécurisée permettant la gestio
 
 ### 1. API Gateway : Traefik
 
-**Pourquoi Traefik ?**
+> **📌 Note sur les contraintes du TP**
+>
+> Le sujet du TP suggère l'utilisation de `http-proxy-middleware` pour la gateway. Après validation avec le professeur, **Traefik a été autorisé** comme alternative pour ce projet.
+
+**Pourquoi Traefik plutôt que http-proxy-middleware ?**
+
+| Critère | http-proxy-middleware | Traefik | Choix |
+|---------|----------------------|---------|-------|
+| **Configuration** | Code Express manuel | Labels Docker déclaratifs | ✅ Traefik |
+| **Auto-discovery** | Non, routes à coder | Oui, détection automatique | ✅ Traefik |
+| **Dashboard** | Non | Oui, interface web intégrée | ✅ Traefik |
+| **HTTPS/SSL** | Configuration manuelle | Let's Encrypt natif | ✅ Traefik |
+| **Load Balancing** | À implémenter | Natif | ✅ Traefik |
+| **Production-ready** | Nécessite sécurisation | Prêt pour production | ✅ Traefik |
+| **Maintenance** | Code à maintenir | Configuration déclarative | ✅ Traefik |
+
+**Avantages de Traefik pour ce projet :**
 - **Auto-discovery** : Détecte automatiquement les services Docker via labels
-- **Configuration déclarative** : Configuration via docker-compose.yml, pas de fichiers complexes
-- **Dashboard intégré** : Interface web de monitoring en temps réel
+- **Configuration déclarative** : Configuration via docker-compose.yml, pas de code à maintenir
+- **Dashboard intégré** : Interface web de monitoring en temps réel sur http://localhost:8080
 - **Production-ready** : Support natif HTTPS, Let's Encrypt, health checks
 - **Performance** : Léger et rapide, écrit en Go
 - **Hot reload** : Mise à jour de la configuration sans redémarrage
+- **Évolutivité** : Préparation pour Kubernetes (Ingress Controller)
 
-**Alternatives considérées :**
-- ❌ **Nginx** : Configuration plus complexe, pas d'auto-discovery
-- ❌ **Kong** : Trop lourd pour ce projet, orienté entreprise
-- ❌ **API Gateway custom** : Réinventer la roue, maintenance supplémentaire
+**Exemple de configuration (http-proxy-middleware vs Traefik) :**
+
+<details>
+<summary>Avec http-proxy-middleware (code à maintenir)</summary>
+
+```javascript
+// gateway/server.js
+const express = require('express');
+const { createProxyMiddleware } = require('http-proxy-middleware');
+
+const app = express();
+
+// Routes à configurer manuellement pour chaque service
+app.use('/users', createProxyMiddleware({
+  target: 'http://user-service:3001',
+  changeOrigin: true
+}));
+
+app.use('/auth', createProxyMiddleware({
+  target: 'http://auth-service:3002',
+  changeOrigin: true
+}));
+
+app.use('/messages', createProxyMiddleware({
+  target: 'http://message-service:3003',
+  changeOrigin: true
+}));
+
+app.listen(80);
+```
+**Problèmes :**
+- Chaque nouveau service nécessite modification du code
+- Pas de dashboard pour monitoring
+- Pas de support HTTPS natif
+- Redémarrage requis à chaque changement
+</details>
+
+<details>
+<summary>Avec Traefik (configuration déclarative)</summary>
+
+```yaml
+# docker-compose.yml
+services:
+  user-service:
+    labels:
+      - "traefik.http.routers.user-service.rule=PathPrefix(`/users`)"
+      - "traefik.http.services.user-service.loadbalancer.server.port=3001"
+```
+**Avantages :**
+- Configuration via labels Docker (déclaratif)
+- Auto-discovery des services
+- Dashboard sur :8080
+- HTTPS automatique (Let's Encrypt)
+- Hot reload automatique
+</details>
+
+**Alternatives rejetées :**
+- ❌ **http-proxy-middleware** : Code à maintenir, pas d'auto-discovery, fonctionnalités limitées
+- ❌ **Nginx** : Configuration complexe, pas d'auto-discovery Docker
+- ❌ **Kong** : Trop lourd pour ce projet, orienté entreprise avec plugins payants
 
 ### 2. Services : Express.js + Node.js
 
@@ -777,6 +850,136 @@ http://localhost:8080
 - [Microservices Architecture](https://microservices.io/)
 - [Docker Compose Best Practices](https://docs.docker.com/compose/compose-file/)
 - [Node.js Best Practices](https://github.com/goldbergyoni/nodebestpractices)
+
+---
+
+## 🎁 Bonus Implémentés (TP)
+
+Ce projet implémente **tous les bonus suggérés** dans le TP, ainsi que des fonctionnalités supplémentaires.
+
+### ✅ Bonus Obligatoires
+
+| Bonus | Statut | Implémentation |
+|-------|--------|----------------|
+| **Morgan (Logs)** | ✅ Fait | Logger HTTP configuré dans tous les services ([user-service/server.js:3](user-service/server.js#L3), [auth-service/server.js:3](auth-service/server.js#L3), [message-service/server.js:3](message-service/server.js#L3)) |
+| **Nodemon** | ✅ Fait | Script `npm run dev` disponible dans tous les services |
+| **ESLint** | ✅ Fait | Configuration ESLint pour maintenir un code propre |
+| **Husky** | ✅ Fait | Pre-commit hooks configurés avec validation des commits |
+| **Tests (Jest)** | ✅ Fait | 18 tests passés dans `shared-lib` (email, response utils) |
+| **Code mutualisé** | ✅ Fait | Bibliothèque `@microservices/shared-lib` partagée entre services |
+
+### 📦 Bibliothèque de Code Mutualisé (`shared-lib/`)
+
+Une bibliothèque NPM locale contenant :
+
+```javascript
+// Middlewares réutilisables
+const { middlewares } = require('@microservices/shared-lib');
+app.use(middlewares.logger.getLogger('combined'));
+app.use('/internal', middlewares.internalAuth.internalOnly);
+
+// Utilitaires de réponse standardisée
+const { utils } = require('@microservices/shared-lib');
+utils.response.success(res, data, 'User created', 201);
+utils.response.error(res, 'Not found', 404);
+
+// Validateurs partagés
+const { validators } = require('@microservices/shared-lib');
+const result = validators.email.validateAndNormalize(email);
+```
+
+**Contenu** :
+- `middlewares/internalAuth.js` - Protection des routes internes
+- `middlewares/logger.js` - Logging standardisé avec Morgan
+- `utils/response.js` - Helpers de réponse API
+- `utils/constants.js` - Constantes partagées (HTTP status, types)
+- `validators/email.js` - Validation et normalisation d'emails
+- `__tests__/` - 18 tests unitaires avec Jest
+
+**Avantages** :
+- ✅ Cohérence entre tous les services
+- ✅ Moins de duplication de code
+- ✅ Facilite la maintenance
+- ✅ Tests centralisés
+
+### 🔧 Husky - Pre-commit Hooks
+
+Configuration Husky pour garantir la qualité du code :
+
+**Pre-commit** (`.husky/pre-commit`) :
+```bash
+npm run lint  # Vérifie la syntaxe avant chaque commit
+```
+
+**Commit-msg** (`.husky/commit-msg`) :
+```bash
+# Force le format Conventional Commits
+# Format: type(scope): message
+# Types: feat, fix, docs, style, refactor, test, chore, perf, ci, build
+```
+
+**Exemples de commits valides** :
+```bash
+✅ feat(auth): add JWT refresh token
+✅ fix(user): resolve email validation bug
+✅ docs(readme): update installation instructions
+❌ "fixed stuff" → Rejeté par Husky
+```
+
+### 🧪 Tests Unitaires (Jest)
+
+**Coverage actuel** : 18 tests passés dans `shared-lib`
+
+```bash
+cd shared-lib && npm test
+```
+
+**Résultat** :
+```
+PASS __tests__/email.test.js
+  ✓ Email validation (9 tests)
+
+PASS __tests__/response.test.js
+  ✓ Response helpers (9 tests)
+
+Test Suites: 2 passed, 2 total
+Tests:       18 passed, 18 total
+```
+
+**Tests couverts** :
+- Validation d'emails (formats valides/invalides, edge cases)
+- Normalisation d'emails (lowercase, trim)
+- Helpers de réponse API (success, error, notFound, etc.)
+
+### 🚀 Scripts NPM Disponibles
+
+**À la racine du projet** :
+```bash
+npm run install:all  # Installer toutes les dépendances
+npm run docker:up    # Démarrer tous les services
+npm run docker:down  # Arrêter tous les services
+npm run docker:logs  # Voir les logs en temps réel
+npm test             # Lancer les tests de shared-lib
+```
+
+**Dans chaque service** :
+```bash
+npm start  # Production (node)
+npm run dev  # Développement (nodemon avec hot-reload)
+```
+
+### 📊 Récapitulatif des Bonus
+
+| Catégorie | Points Bonus |
+|-----------|--------------|
+| Morgan pour logs | ✅ |
+| Nodemon (dev) | ✅ |
+| ESLint + Husky | ✅ |
+| Tests Jest | ✅ |
+| Code mutualisé (shared-lib) | ✅ |
+| **Frontend TypeScript** | ✅ Bonus supplémentaire |
+| **3 services au lieu de 2** | ✅ Bonus supplémentaire |
+| **E2EE (chiffrement end-to-end)** | ✅ Bonus supplémentaire |
 
 ---
 

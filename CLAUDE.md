@@ -53,10 +53,12 @@ http://localhost:8080
 ## Service Details
 
 ### User Service (Express.js + PostgreSQL)
-- **Purpose:** User registration, profile management, credential verification, status management
+- **Purpose:** User registration, profile management, credential verification, status management, E2EE key management
 - **Key files:**
   - `user-service/controllers/userController.js` - Business logic
+  - `user-service/controllers/keyController.js` - E2EE key management
   - `user-service/models/User.js` - Database model with bcrypt hashing and profile fields
+  - `user-service/models/UserKey.js` - E2EE public key storage
   - `user-service/middlewares/auth.js` - JWT validation via Auth Service
 - **Endpoints:**
   - `POST /users/register` - User registration
@@ -66,6 +68,11 @@ http://localhost:8080
   - `GET /users/:id/profile` - Get user profile (photo, bio, status)
   - `PUT /users/:id/profile` - Update profile (photo_url, bio)
   - `PUT /users/:id/status` - Update status (online/offline/busy/away + message)
+  - `POST /users/keys` - Upload public encryption key
+  - `GET /users/keys/me` - Get own encryption keys
+  - `GET /users/:userId/keys` - Get user's public keys
+  - `POST /users/keys/bulk` - Get public keys for multiple users
+  - `DELETE /users/keys/:device_id` - Deactivate device key
 - **Internal endpoint:** `POST /internal/verify-credentials` - Called by Auth Service during login
 
 ### Auth Service (Express.js + Redis)
@@ -77,11 +84,12 @@ http://localhost:8080
 - **Internal endpoint:** `POST /internal/validate-token` - Called by other services
 
 ### Message Service (Express.js + MongoDB + Socket.io)
-- **Purpose:** Conversations, messages, real-time chat, file uploads
+- **Purpose:** Conversations, messages, real-time chat, file uploads, E2EE message routing
 - **Key files:**
-  - `message-service/models/Conversation.js` - MongoDB schema with messages, reactions, attachments
+  - `message-service/models/Conversation.js` - MongoDB schema with messages, reactions, attachments, encryption fields
   - `message-service/services/socketService.js` - WebSocket event handlers
   - `message-service/services/uploadService.js` - File upload handling (multer)
+  - `message-service/services/encryptionService.js` - E2EE validation and key fetching
   - `message-service/controllers/messageController.js` - REST API handlers
 - **REST Endpoints:**
   - `GET /messages/conversations` - List user's conversations
@@ -122,14 +130,15 @@ http://localhost:8080
   - Reusable UI components
   - Type-safe with TypeScript interfaces
 - **Key files:**
-  - `frontend/src/contexts/AuthContext.tsx` - Global auth state
+  - `frontend/src/contexts/AuthContext.tsx` - Global auth state with E2EE initialization
   - `frontend/src/services/api.ts` - Axios with auto token refresh
   - `frontend/src/services/socket.ts` - Socket.io client with all event helpers
+  - `frontend/src/services/encryption.ts` - E2EE client-side encryption/decryption (TweetNaCl)
   - `frontend/src/pages/Chat.tsx` - Main chat orchestrator (220 lines)
-  - **Hooks:** `useUserCache`, `useConversations`, `useSocketEvents`, `useMessages`, `useTypingIndicator`, `useGifSearch`
-  - **Components:** `Message`, `MessageList`, `MessageInput`, `ChatHeader`, `ConversationSidebar`, `GifPicker`, `UserListModal`, `DeleteMessageModal`, `ConfettiButton`
+  - **Hooks:** `useUserCache`, `useConversations`, `useSocketEvents`, `useMessages`, `useTypingIndicator`, `useGifSearch`, `useEncryption`
+  - **Components:** `Message`, `MessageList`, `MessageInput`, `ChatHeader`, `ConversationSidebar`, `ProfileSidebar`, `GifPicker`, `CreateGroupModal`, `DeleteMessageModal`, `ConfettiButton`, `EncryptionBadge`
   - **Utils:** `chatHelpers.ts` - Utility functions (isGifUrl, formatMessageTime, groupReactionsByEmoji, etc.)
-  - **Types:** `frontend/src/types/chat.ts` - Shared TypeScript interfaces
+  - **Types:** `frontend/src/types/chat.ts` - Shared TypeScript interfaces (User, Message, Conversation, Attachment, Reaction)
 - **Features:**
   - Real-time messaging with WebSocket
   - **GIF support:**
@@ -154,7 +163,20 @@ http://localhost:8080
     - Click to toggle reaction (add/remove)
     - Real-time updates via WebSocket (reaction_added, reaction_removed events)
   - Reply to messages (quote)
-  - File/image upload and preview
+  - **File/image upload and preview:**
+    - **Paperclip button** (📎) in MessageInput to attach files
+    - **Multi-file selection:** Up to 5 files at once
+    - **File validation:** Max 10MB per file, automatic size checking
+    - **Preview interface:** Shows selected files before sending with name, size, and remove option
+    - **Supported types:**
+      - Images: jpg, png, gif, webp, svg (displayed inline in chat)
+      - Documents: pdf, doc, docx, xls, xlsx, txt (shown as downloadable links)
+      - Archives: zip, rar
+    - **Smart display:**
+      - Images: Rendered as clickable thumbnails (max-h-60) in messages
+      - Documents: Shown as clickable links with FileText icon, name, size, and Download icon
+    - **Upload flow:** Files uploaded to `/messages/upload`, then filenames sent via WebSocket
+    - **Storage:** Files stored in `message-service/uploads/` directory
   - Search messages
   - Read receipts with timestamps (✓ sent, ✓✓ delivered, ✓✓ read)
   - Unread message badges
@@ -175,10 +197,61 @@ http://localhost:8080
     - PartyPopper icon for celebrations
     - 3-second animation with pastel colors
   - **Group conversations:**
-    - Create groups with 1+ members
-    - Dynamic member management (add/remove)
-    - Group settings modal with member list
-    - New members get full message history
+    - **Create groups with 1+ members** via `CreateGroupModal` component
+    - **Multi-select interface:** Users can select multiple participants with checkboxes
+    - **Smart conversation creation:**
+      - 1 member selected → Creates private conversation (no group name required)
+      - 2+ members selected → Creates group (group name required)
+    - **Group name input:** Only appears when 2+ members are selected
+    - **Search functionality:** Filter users by name or email
+    - **Selected members counter:** Shows how many members are selected
+    - **Visual feedback:** Selected users highlighted with checkmark badge
+    - **Dynamic member management:** Add/remove members after group creation
+    - **Group settings modal:** Manage members and view group info
+    - **Full message history:** New members get access to all previous messages
+    - **Group indicators:** Groups display with Users icon in conversation list
+  - **Profile Sidebar** (`ProfileSidebar` component):
+    - **Toggle button:** User icon button in ChatHeader to open/close profile sidebar
+    - **Responsive panel:** 320px right sidebar that slides in/out
+    - **3 tabs:**
+      1. **Infos Tab:**
+         - Large avatar (24x24) with online status indicator
+         - User/group name and status (online/offline)
+         - **Group members list** (if group):
+           - Shows all participants with avatars
+           - Displays admin badge
+           - "Add member" button (visible to admin)
+           - "Remove member" button per user (admin only)
+         - **Conversation statistics:**
+           - Total messages count
+           - Photos shared count
+           - Files shared count
+         - **Group settings button** (admin only)
+      2. **Médias Tab:**
+         - **Grid display** (3 columns) of all shared images
+         - Clickable thumbnails (opens in new tab)
+         - Empty state with Image icon
+         - **Filters images** from message attachments
+      3. **Fichiers Tab:**
+         - **List display** of all non-image files
+         - Shows file icon, name, extension, and size (MB)
+         - Clickable to download/open
+         - Empty state with FileText icon
+         - **Filters documents/archives** from message attachments
+    - **Data extraction:**
+      - Scans all conversation messages
+      - Extracts attachments by mimeType
+      - Images: `mimeType.startsWith('image/')`
+      - Files: `!mimeType.startsWith('image/')`
+  - **End-to-End Encryption (E2EE):**
+    - Client-side encryption using TweetNaCl (Curve25519)
+    - Automatic key generation on login
+    - Private keys stored locally (never sent to server)
+    - Public keys distributed via User Service
+    - Encryption badge indicator in chat header
+    - Per-device encryption support
+    - Safety numbers for key verification (planned)
+    - Encrypted file attachments (planned)
 
 ## Authentication Flow
 
@@ -186,6 +259,53 @@ http://localhost:8080
 2. Token validation: Services call Auth Service `/internal/validate-token`
 3. Refresh: `POST /auth/refresh` with refresh_token
 4. Logout: Access token blacklisted in Redis, refresh token deleted
+
+## End-to-End Encryption (E2EE)
+
+**Cryptographic Implementation:**
+- **Library:** TweetNaCl (NaCl - Networking and Cryptography library)
+- **Algorithm:** Curve25519 elliptic curve cryptography
+- **Encryption:** NaCl box (public-key authenticated encryption)
+- **Key Size:** 256-bit (32 bytes)
+
+**E2EE Flow:**
+```
+1. Key Generation (Client-Side):
+   - User logs in → Frontend generates key pair (public + private)
+   - Private key: Stored in localStorage (NEVER sent to server)
+   - Public key: Uploaded to User Service for other users to fetch
+
+2. Sending Encrypted Message:
+   - Sender fetches recipient's public key(s) from User Service
+   - Sender encrypts message with recipient's public key + own private key
+   - Encrypted payload sent to Message Service
+   - Server stores encrypted data (cannot decrypt)
+
+3. Receiving Encrypted Message:
+   - Recipient receives encrypted payload from server
+   - Recipient decrypts with own private key + sender's public key
+   - Only the recipient can read the message
+```
+
+**Key Features:**
+- Per-device encryption keys (multi-device support)
+- Public keys stored in PostgreSQL (`user_keys` table)
+- Private keys never leave the client device
+- Encryption badge shown in chat header (lock icon)
+- Auto-initialization on login
+- Key fingerprints for verification (safety numbers)
+- Support for encrypted file attachments
+
+**Security Properties:**
+- **Confidentiality:** Only sender and recipient can read messages
+- **Authenticity:** Messages are cryptographically signed
+- **Integrity:** Tampering is detected automatically
+- **Forward Secrecy:** Planned (session keys rotation)
+
+**Limitations (Current Implementation):**
+- Search only works on unencrypted messages (server cannot index encrypted content)
+- Reactions and message metadata (timestamps, read receipts) are NOT encrypted
+- Group messages use individual encryption per recipient (no shared secret yet)
 
 ## Database Schemas
 
@@ -205,6 +325,18 @@ users (
   created_at,
   updated_at
 )
+
+user_keys (
+  id,
+  user_id,            -- Foreign key to users.id
+  device_id,          -- Unique device identifier
+  public_key,         -- Base64 encoded Curve25519 public key (44 chars)
+  key_fingerprint,    -- Hex fingerprint for verification (64 chars)
+  is_active,          -- Key activation status
+  created_at,
+  updated_at,
+  UNIQUE(user_id, device_id)
+)
 ```
 
 **MongoDB (conversations):**
@@ -216,13 +348,19 @@ users (
   groupAdmin: Number,
   messages: [{
     from: Number,
-    content: String,
+    content: String,                    // Plaintext or "[Encrypted Message]"
+    encrypted: Boolean,                 // E2EE flag
+    encryptedPayloads: Map<String>,     // { "userId:deviceId": "base64EncryptedData" }
+    nonce: String,                      // Base64 nonce for decryption
+    senderDeviceId: String,             // Device that sent the message
     attachments: [{
       filename: String,
       originalName: String,
       url: String,
       mimeType: String,
-      size: Number
+      size: Number,
+      encrypted: Boolean,               // E2EE for attachments
+      encryptedData: String             // Encrypted file data
     }],
     readBy: [{
       userId: Number,
@@ -233,9 +371,9 @@ users (
       userId: Number,
       createdAt: Date
     }],
-    replyTo: ObjectId,    // Reference to parent message
-    editedAt: Date,       // Edit timestamp
-    deletedAt: Date,      // Soft delete timestamp
+    replyTo: ObjectId,                  // Reference to parent message
+    editedAt: Date,                     // Edit timestamp
+    deletedAt: Date,                    // Soft delete timestamp
     createdAt: Date
   }],
   lastMessage: { content, from, createdAt },
@@ -290,6 +428,7 @@ Regex: `/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/`
 - `lucide-react` - Icon library
 - `canvas-confetti` - Confetti animations
 - `@types/canvas-confetti` - TypeScript types
+- `tweetnacl` + `tweetnacl-util` - E2EE cryptography library
 - `tailwindcss` - Utility-first CSS
 - `shadcn/ui` - UI component library
 

@@ -50,6 +50,28 @@ export const useConversations = (currentUserId?: number) => {
     }
   };
 
+  const createGroup = async (groupName: string, participantIds: number[]) => {
+    try {
+      const isGroup = participantIds.length > 1;
+      const conversation = await messagesApi.createConversation({
+        participants: participantIds,
+        isGroup,
+        groupName: isGroup ? groupName : undefined,
+      });
+      setConversations((prev) => {
+        const exists = prev.find(c => c._id === conversation._id);
+        if (exists) return prev;
+        return [conversation, ...prev];
+      });
+      setSelectedConversation(conversation);
+      joinConversation(conversation._id);
+      return conversation;
+    } catch (error) {
+      console.error('Failed to create group:', error);
+      throw error;
+    }
+  };
+
   const getConversationName = (conversation: Conversation, getUserDisplayName: (id: number) => string) => {
     if (conversation.isGroup && conversation.groupName) {
       return conversation.groupName;
@@ -68,6 +90,7 @@ export const useConversations = (currentUserId?: number) => {
     setSelectedConversation,
     selectConversation,
     createConversation,
+    createGroup,
     getConversationName,
   };
 };

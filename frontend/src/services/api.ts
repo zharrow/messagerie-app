@@ -112,6 +112,32 @@ export const userApi = {
     const response = await api.put(`/users/${id}/status`, data);
     return response.data;
   },
+
+  // E2EE Key management
+  uploadPublicKey: async (data: { device_id: string; public_key: string; key_fingerprint: string }) => {
+    const response = await api.post('/users/keys', data);
+    return response.data;
+  },
+
+  getMyKeys: async () => {
+    const response = await api.get('/users/keys/me');
+    return response.data;
+  },
+
+  getUserPublicKeys: async (userId: number) => {
+    const response = await api.get(`/users/${userId}/keys`);
+    return response.data;
+  },
+
+  getBulkPublicKeys: async (userIds: number[]) => {
+    const response = await api.post('/users/keys/bulk', { user_ids: userIds });
+    return response.data;
+  },
+
+  deactivateKey: async (deviceId: string) => {
+    const response = await api.delete(`/users/keys/${deviceId}`);
+    return response.data;
+  },
 };
 
 // Messages API
@@ -166,6 +192,11 @@ export const messagesApi = {
     const response = await api.delete(
       `/messages/conversations/${conversationId}/participants/${participantId}`
     );
+    return response.data;
+  },
+
+  deleteConversation: async (conversationId: string) => {
+    const response = await api.delete(`/messages/conversations/${conversationId}`);
     return response.data;
   },
 

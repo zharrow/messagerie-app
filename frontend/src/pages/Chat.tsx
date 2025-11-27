@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { userApi } from '@/services/api';
+import { userApi, messagesApi } from '@/services/api';
 import { sendMessage as socketSendMessage } from '@/services/socket';
 
 // Hooks
@@ -10,6 +10,7 @@ import { useSocketEvents } from '@/hooks/useSocketEvents';
 import { useMessages } from '@/hooks/useMessages';
 import { useTypingIndicator } from '@/hooks/useTypingIndicator';
 import { useGifSearch } from '@/hooks/useGifSearch';
+import { useMessageDecryption } from '@/hooks/useMessageDecryption';
 
 // Components
 import ConversationSidebar from '@/components/chat/ConversationSidebar';
@@ -17,13 +18,17 @@ import ChatHeader from '@/components/chat/ChatHeader';
 import MessageList from '@/components/chat/MessageList';
 import MessageInput from '@/components/chat/MessageInput';
 import GifPicker from '@/components/chat/GifPicker';
-import UserListModal from '@/components/chat/UserListModal';
+import CreateGroupModal from '@/components/chat/CreateGroupModal';
 import DeleteMessageModal from '@/components/chat/DeleteMessageModal';
+import ProfileSidebar from '@/components/chat/ProfileSidebar';
+import GroupSettingsModal from '@/components/chat/GroupSettingsModal';
 
 const Chat = () => {
   const { user, logout } = useAuth();
   const [showUserList, setShowUserList] = useState(false);
   const [loadingUsers, setLoadingUsers] = useState(false);
+  const [showProfileSidebar, setShowProfileSidebar] = useState(false);
+  const [showGroupSettings, setShowGroupSettings] = useState(false);
 
   // Custom hooks
   const { usersCache, users, setUsers, getUserDisplayName, getUserInitials } = useUserCache();
@@ -35,6 +40,7 @@ const Chat = () => {
     setSelectedConversation,
     selectConversation,
     createConversation,
+    createGroup,
     getConversationName,
   } = useConversations(user?.id);
 
@@ -56,6 +62,7 @@ const Chat = () => {
     setShowEmojiPicker,
     deletingMessageId,
     sendMessage,
+    sendMessageWithFiles,
     handleEditMessage,
     handleSaveEdit,
     handleCancelEdit,
@@ -76,6 +83,9 @@ const Chat = () => {
     resetGifSearch,
   } = useGifSearch();
 
+  // Hook de déchiffrement E2EE
+  const { getMessageContent, decryptMessages } = useMessageDecryption(user?.id);
+
   const [showGifPicker, setShowGifPicker] = useState(false);
 
   // Load users for the modal
@@ -91,13 +101,14 @@ const Chat = () => {
     }
   };
 
-  // Handle user selection
-  const handleStartConversation = async (targetUser: any) => {
+  // Handle create group/conversation
+  const handleCreateGroup = async (groupName: string, selectedUserIds: number[]) => {
     try {
-      await createConversation(targetUser);
+      await createGroup(groupName, selectedUserIds);
       setShowUserList(false);
     } catch (error) {
-      console.error('Failed to create conversation:', error);
+      console.error('Failed to create conversation/group:', error);
+      alert('Erreur lors de la création de la conversation');
     }
   };
 
@@ -138,15 +149,70 @@ const Chat = () => {
     loadUsers();
   };
 
+  // Handle open group settings
+  const handleOpenGroupSettings = () => {
+    setShowGroupSettings(true);
+    loadUsers(); // Load users for adding members
+  };
+
+  // Handle add members to group
+  const handleAddMembers = async (userIds: number[]) => {
+    if (!selectedConversation) return;
+    try {
+      const updatedConversation = await messagesApi.addParticipants(selectedConversation._id, userIds);
+      setSelectedConversation(updatedConversation);
+      // Update in conversations list
+      setConversations((prev) =>
+        prev.map((c) => (c._id === updatedConversation._id ? updatedConversation : c))
+      );
+    } catch (error) {
+      console.error('Failed to add members:', error);
+      throw error;
+    }
+  };
+
+  // Handle remove member from group
+  const handleRemoveMember = async (userId: number) => {
+    if (!selectedConversation) return;
+    try {
+      const updatedConversation = await messagesApi.removeParticipant(selectedConversation._id, userId);
+      setSelectedConversation(updatedConversation);
+      // Update in conversations list
+      setConversations((prev) =>
+        prev.map((c) => (c._id === updatedConversation._id ? updatedConversation : c))
+      );
+    } catch (error) {
+      console.error('Failed to remove member:', error);
+      throw error;
+    }
+  };
+
+  // Handle delete group
+  const handleDeleteGroup = async () => {
+    if (!selectedConversation) return;
+    try {
+      await messagesApi.deleteConversation(selectedConversation._id);
+      // Remove from conversations list
+      setConversations((prev) => prev.filter((c) => c._id !== selectedConversation._id));
+      setSelectedConversation(null);
+      setShowGroupSettings(false);
+      setShowProfileSidebar(false);
+    } catch (error) {
+      console.error('Failed to delete group:', error);
+      throw error;
+    }
+  };
+
   return (
-    <div className="h-screen flex bg-background">
-      {/* User List Modal */}
-      <UserListModal
+    <div className="h-screen flex bg-gray-50">
+      {/* Create Group/Conversation Modal */}
+      <CreateGroupModal
         isOpen={showUserList}
         users={users}
         loadingUsers={loadingUsers}
+        currentUserId={user?.id || 0}
         onClose={() => setShowUserList(false)}
-        onSelectUser={handleStartConversation}
+        onCreateGroup={handleCreateGroup}
       />
 
       {/* Sidebar */}
@@ -175,6 +241,7 @@ const Chat = () => {
               conversationId={selectedConversation._id}
               currentUserId={user?.id}
               getUserDisplayName={getUserDisplayName}
+              onToggleProfile={() => setShowProfileSidebar(!showProfileSidebar)}
             />
 
             {/* Messages */}
@@ -185,6 +252,8 @@ const Chat = () => {
               editContent={editContent}
               hoveredMessageId={hoveredMessageId}
               showEmojiPicker={showEmojiPicker}
+              getMessageContent={getMessageContent}
+              decryptMessages={decryptMessages}
               onHover={setHoveredMessageId}
               onEdit={handleEditMessage}
               onDelete={handleDeleteMessage}
@@ -200,12 +269,13 @@ const Chat = () => {
               messageInput={messageInput}
               onInputChange={handleInputChange}
               onSendMessage={handleSendMessage}
+              onSendMessageWithFiles={sendMessageWithFiles}
               onOpenGifPicker={handleOpenGifPicker}
             />
           </>
         ) : (
-          <div className="flex-1 flex items-center justify-center">
-            <p className="text-muted-foreground">
+          <div className="flex-1 flex items-center justify-center bg-white">
+            <p className="text-gray-500">
               Sélectionnez une conversation pour commencer
             </p>
           </div>
@@ -230,6 +300,35 @@ const Chat = () => {
         onClose={cancelDeleteMessage}
         onConfirm={confirmDeleteMessage}
       />
+
+      {/* Profile Sidebar */}
+      <ProfileSidebar
+        isOpen={showProfileSidebar}
+        conversation={selectedConversation}
+        currentUserId={user?.id || 0}
+        onClose={() => setShowProfileSidebar(false)}
+        getUserDisplayName={getUserDisplayName}
+        getUserInitials={getUserInitials}
+        onlineUsers={onlineUsers}
+        onOpenGroupSettings={handleOpenGroupSettings}
+      />
+
+      {/* Group Settings Modal */}
+      {selectedConversation?.isGroup && (
+        <GroupSettingsModal
+          isOpen={showGroupSettings}
+          conversation={selectedConversation}
+          currentUserId={user?.id || 0}
+          users={users}
+          onClose={() => setShowGroupSettings(false)}
+          onAddMembers={handleAddMembers}
+          onRemoveMember={handleRemoveMember}
+          onDeleteGroup={handleDeleteGroup}
+          getUserDisplayName={getUserDisplayName}
+          getUserInitials={getUserInitials}
+          onlineUsers={onlineUsers}
+        />
+      )}
     </div>
   );
 };

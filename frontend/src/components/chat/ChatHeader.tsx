@@ -1,4 +1,7 @@
+import { Button } from '@/components/ui/button';
 import ShinyText from '@/components/ui/ShinyText';
+import { EncryptionBadge } from '@/components/EncryptionBadge';
+import { Phone, Video, Info } from 'lucide-react';
 
 interface ChatHeaderProps {
   conversationName: string;
@@ -6,6 +9,7 @@ interface ChatHeaderProps {
   conversationId: string;
   currentUserId?: number;
   getUserDisplayName: (userId: number) => string;
+  onToggleProfile?: () => void;
 }
 
 const ChatHeader = ({
@@ -14,6 +18,7 @@ const ChatHeader = ({
   conversationId,
   currentUserId,
   getUserDisplayName,
+  onToggleProfile,
 }: ChatHeaderProps) => {
   const getTypingIndicator = () => {
     const typing = typingUsers.get(conversationId);
@@ -27,15 +32,38 @@ const ChatHeader = ({
       <ShinyText
         text={`${typingUserName} est en train d'écrire...`}
         speed={2}
-        className="text-sm text-muted-foreground"
+        className="text-xs text-blue-600"
       />
     );
   };
 
   return (
-    <div className="p-4 border-b">
-      <h2 className="font-semibold">{conversationName}</h2>
-      {getTypingIndicator()}
+    <div className="px-5 py-3 border-b bg-white shadow-sm">
+      <div className="flex items-center justify-between">
+        <div className="flex-1 min-w-0">
+          <h2 className="font-semibold text-lg truncate">{conversationName}</h2>
+          {getTypingIndicator()}
+        </div>
+        <div className="flex items-center gap-1">
+          <Button variant="ghost" size="icon" className="h-10 w-10 rounded-full hover:bg-gray-100">
+            <Phone className="h-5 w-5 text-blue-600" />
+          </Button>
+          <Button variant="ghost" size="icon" className="h-10 w-10 rounded-full hover:bg-gray-100">
+            <Video className="h-5 w-5 text-blue-600" />
+          </Button>
+          <EncryptionBadge variant="compact" />
+          {onToggleProfile && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onToggleProfile}
+              className="h-10 w-10 rounded-full hover:bg-gray-100"
+            >
+              <Info className="h-5 w-5 text-blue-600" />
+            </Button>
+          )}
+        </div>
+      </div>
     </div>
   );
 };

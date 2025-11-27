@@ -1,0 +1,26 @@
+{
+  "name": "microservices-architecture",
+  "version": "1.0.0",
+  "description": "Microservices architecture with Traefik gateway",
+  "scripts": {
+    "install:all": "cd user-service && npm install && cd ../auth-service && npm install && cd ../message-service && npm install && cd ../shared-lib && npm install && cd ../frontend && npm install",
+    "docker:up": "docker-compose up -d --build",
+    "docker:down": "docker-compose down",
+    "docker:logs": "docker-compose logs -f",
+    "test": "cd shared-lib && npm test",
+    "lint": "echo 'Running lint checks...' && cd user-service && npm run lint --if-present && cd ../auth-service && npm run lint --if-present && cd ../message-service && npm run lint --if-present",
+    "prepare": "husky install"
+  },
+  "keywords": [
+    "microservices",
+    "traefik",
+    "docker",
+    "express",
+    "nodejs"
+  ],
+  "author": "Florent",
+  "license": "MIT",
+  "devDependencies": {
+    "husky": "^8.0.3"
+  }
+}

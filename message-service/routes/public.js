@@ -39,6 +39,7 @@ router.post('/upload', upload.array('files', 5), (req, res) => {
 router.get('/conversations', messageController.getConversations);
 router.post('/conversations', messageController.createConversation);
 router.get('/conversations/:id', messageController.getConversation);
+router.delete('/conversations/:id', messageController.deleteConversation);
 
 // Search in conversations
 router.get('/search', messageController.searchMessages);
