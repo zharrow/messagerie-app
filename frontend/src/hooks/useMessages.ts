@@ -5,7 +5,11 @@ import { encryptionService } from '@/services/encryption';
 import { userApi, messagesApi } from '@/services/api';
 import type { Conversation, Message } from '@/types/chat';
 
-export const useMessages = (selectedConversation: Conversation | null, userId?: number) => {
+export const useMessages = (
+  selectedConversation: Conversation | null,
+  userId?: number,
+  getMessageContent?: (message: Message) => string
+) => {
   const { isEncryptionEnabled } = useAuth();
   const [messageInput, setMessageInput] = useState('');
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
@@ -31,14 +35,16 @@ export const useMessages = (selectedConversation: Conversation | null, userId?: 
           return;
         }
 
-        // Récupérer les clés publiques des participants
-        const participantIds = selectedConversation.participants.filter(id => id !== userId);
+        // Récupérer les clés publiques de TOUS les participants (y compris soi-même)
+        // Important: L'expéditeur doit pouvoir déchiffrer ses propres messages
+        const participantIds = selectedConversation.participants;
         if (participantIds.length === 0) {
-          console.error('Aucun destinataire trouvé');
+          console.error('Aucun participant trouvé');
           return;
         }
 
         const { keys: recipientKeys } = await userApi.getBulkPublicKeys(participantIds);
+        console.log('[ENCRYPT] Chiffrement pour les participants:', participantIds);
 
         // Chiffrer le message pour chaque destinataire
         const encryptedMessage = encryptionService.encryptMessage(
@@ -69,15 +75,17 @@ export const useMessages = (selectedConversation: Conversation | null, userId?: 
   const handleEditMessage = (messageId: string) => {
     const message = selectedConversation?.messages.find(m => m._id === messageId);
     if (message) {
-      console.log('Editing message:', messageId, 'Content:', message.content);
+      // Use decrypted content if available, otherwise fall back to raw content
+      const content = getMessageContent ? getMessageContent(message) : message.content;
+      console.log('Editing message:', messageId, 'Content:', content);
       setEditingMessageId(messageId);
-      setEditContent(message.content);
+      setEditContent(content);
     } else {
       console.error('Message not found:', messageId);
     }
   };
 
-  const handleSaveEdit = () => {
+  const handleSaveEdit = async () => {
     console.log('Saving edit - MessageId:', editingMessageId, 'Content:', editContent);
     if (!selectedConversation || !editingMessageId || !editContent.trim()) {
       console.warn('Cannot save edit - missing data:', {
@@ -87,7 +95,49 @@ export const useMessages = (selectedConversation: Conversation | null, userId?: 
       });
       return;
     }
-    editMessage(selectedConversation._id, editingMessageId, editContent.trim());
+
+    // Trouver le message original pour vérifier s'il était chiffré
+    const originalMessage = selectedConversation.messages.find(m => m._id === editingMessageId);
+
+    // Si le message original était chiffré ET que le chiffrement est activé
+    if (originalMessage?.encrypted && isEncryptionEnabled) {
+      try {
+        // Rechiffrer le nouveau contenu
+        const keyPair = encryptionService.loadKeyPair();
+        if (!keyPair) {
+          console.error('Clés de chiffrement non disponibles pour l\'édition');
+          editMessage(selectedConversation._id, editingMessageId, editContent.trim());
+          setEditingMessageId(null);
+          setEditContent('');
+          return;
+        }
+
+        // Récupérer les clés publiques de tous les participants
+        const participantIds = selectedConversation.participants;
+        const { keys: recipientKeys } = await userApi.getBulkPublicKeys(participantIds);
+        console.log('[EDIT] Rechiffrement pour les participants:', participantIds);
+
+        // Rechiffrer le message édité
+        const encryptedMessage = encryptionService.encryptMessage(
+          editContent.trim(),
+          recipientKeys,
+          keyPair.privateKey,
+          keyPair.deviceId
+        );
+
+        // Envoyer le message chiffré avec les données de chiffrement
+        editMessage(selectedConversation._id, editingMessageId, '[Chiffré]', encryptedMessage);
+
+      } catch (error) {
+        console.error('Erreur lors du rechiffrement du message édité:', error);
+        // Fallback: envoyer en clair
+        editMessage(selectedConversation._id, editingMessageId, editContent.trim());
+      }
+    } else {
+      // Message non chiffré, envoi normal
+      editMessage(selectedConversation._id, editingMessageId, editContent.trim());
+    }
+
     setEditingMessageId(null);
     setEditContent('');
   };

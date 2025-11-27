@@ -205,12 +205,22 @@ class EncryptionService {
     try {
       const { encryptedPayloads, nonce, senderDeviceId } = encryptedMessage;
 
+      console.log('[DECRYPT] Tentative de déchiffrement:', {
+        messageId: encryptedMessage._id,
+        currentUserId,
+        currentDeviceId,
+        availablePayloads: encryptedPayloads ? Object.keys(encryptedPayloads) : 'none',
+        hasNonce: !!nonce,
+        senderDeviceId
+      });
+
       // Find the payload for this device
       const payloadKey = `${currentUserId}:${currentDeviceId}`;
       const encryptedPayload = encryptedPayloads[payloadKey];
 
       if (!encryptedPayload) {
-        console.warn('No encrypted payload found for this device');
+        console.warn('[DECRYPT] No encrypted payload found for this device. Looking for:', payloadKey);
+        console.warn('[DECRYPT] Available keys:', Object.keys(encryptedPayloads || {}));
         return null;
       }
 

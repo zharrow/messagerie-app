@@ -1,7 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { encryptionService } from '@/services/encryption';
 import { userApi } from '@/services/api';
-import type { Message } from '@/types/chat';
 
 interface DecryptedMessageCache {
   [messageId: string]: string;
@@ -114,13 +113,29 @@ export const useMessageDecryption = (userId: number | undefined) => {
 
   /**
    * Obtenir le contenu d'un message (déchiffré ou non)
+   * Déclenche le déchiffrement automatiquement si nécessaire
    */
   const getMessageContent = (message: any): string => {
     if (!message.encrypted) {
       return message.content;
     }
 
-    return decryptedMessages[message._id] || '[Déchiffrement en cours...]';
+    // Si le message est déjà déchiffré, le retourner
+    if (decryptedMessages[message._id]) {
+      return decryptedMessages[message._id];
+    }
+
+    // Sinon, déclencher le déchiffrement de manière asynchrone
+    decryptMessage(message).then(content => {
+      if (content && content !== decryptedMessages[message._id]) {
+        // Le résultat sera mis en cache et déclenchera un re-render
+        console.log(`Message ${message._id} déchiffré:`, content.substring(0, 50));
+      }
+    }).catch(err => {
+      console.error('Erreur lors du déchiffrement automatique:', err);
+    });
+
+    return '[Déchiffrement en cours...]';
   };
 
   /**
@@ -131,11 +146,24 @@ export const useMessageDecryption = (userId: number | undefined) => {
     setSenderKeys({});
   };
 
+  /**
+   * Invalider le cache d'un message spécifique
+   * Utile lors de l'édition d'un message
+   */
+  const invalidateMessageCache = (messageId: string) => {
+    setDecryptedMessages(prev => {
+      const newCache = { ...prev };
+      delete newCache[messageId];
+      return newCache;
+    });
+  };
+
   return {
     decryptMessage,
     decryptMessages,
     getMessageContent,
     clearCache,
+    invalidateMessageCache,
     decryptedMessages,
   };
 };

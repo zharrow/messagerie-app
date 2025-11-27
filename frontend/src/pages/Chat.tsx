@@ -33,7 +33,7 @@ const Chat = () => {
   const [showFireAnimation, setShowFireAnimation] = useState(false);
 
   // Custom hooks
-  const { usersCache, users, setUsers, getUserDisplayName, getUserInitials } = useUserCache();
+  const { users, setUsers, getUserDisplayName, getUserInitials } = useUserCache();
 
   const {
     conversations,
@@ -41,15 +41,18 @@ const Chat = () => {
     selectedConversation,
     setSelectedConversation,
     selectConversation,
-    createConversation,
     createGroup,
     getConversationName,
   } = useConversations(user?.id);
+
+  // Hook de déchiffrement E2EE (must be before useSocketEvents and useMessages)
+  const { getMessageContent, decryptMessages, invalidateMessageCache } = useMessageDecryption(user?.id);
 
   const { typingUsers, onlineUsers } = useSocketEvents({
     selectedConversation,
     setConversations,
     setSelectedConversation,
+    invalidateMessageCache,
   });
 
   const {
@@ -72,7 +75,7 @@ const Chat = () => {
     confirmDeleteMessage,
     cancelDeleteMessage,
     handleReaction,
-  } = useMessages(selectedConversation, user?.id);
+  } = useMessages(selectedConversation, user?.id, getMessageContent);
 
   const { handleTyping, stopTypingIndicator } = useTypingIndicator(selectedConversation?._id || null);
 
@@ -84,9 +87,6 @@ const Chat = () => {
     loadTrendingGifs,
     resetGifSearch,
   } = useGifSearch();
-
-  // Hook de déchiffrement E2EE
-  const { getMessageContent, decryptMessages } = useMessageDecryption(user?.id);
 
   const [showGifPicker, setShowGifPicker] = useState(false);
 

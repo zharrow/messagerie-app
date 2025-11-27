@@ -188,6 +188,7 @@ export const Fire3DShaders = forwardRef<HTMLDivElement, Fire3DShadersProps>(
               u_intensity: { type: '1f', value: intensity },
               u_fadeProgress: { type: '1f', value: fadeProgress },
             }}
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             style={{ width: '100%', height: '100%' } as any}
           />
         </div>

@@ -197,7 +197,7 @@ const initializeSocket = (server) => {
     socket.on('edit_message', async (data) => {
       try {
         console.log(`[EDIT] User ${userId} editing message ${data.messageId} in conversation ${data.conversationId}`);
-        const { conversationId, messageId, content } = data;
+        const { conversationId, messageId, content, encrypted, encryptedPayloads, nonce, senderDeviceId } = data;
 
         const conversation = await Conversation.findOne({
           _id: conversationId,
@@ -227,18 +227,38 @@ const initializeSocket = (server) => {
           return;
         }
 
+        // Mettre à jour le contenu et les champs de chiffrement si fournis
         message.content = content;
         message.editedAt = new Date();
+
+        if (encrypted && encryptedPayloads && nonce && senderDeviceId) {
+          message.encrypted = true;
+          message.encryptedPayloads = encryptedPayloads;
+          message.nonce = nonce;
+          message.senderDeviceId = senderDeviceId;
+          console.log(`[EDIT] Message chiffré édité par l'utilisateur ${userId} (appareil: ${senderDeviceId})`);
+        }
+
         await conversation.save();
         console.log(`[EDIT] Message ${messageId} edited successfully, broadcasting...`);
 
-        // Broadcast to all participants
-        io.to(`conversation:${conversationId}`).emit('message_edited', {
+        // Broadcast to all participants avec tous les champs
+        const broadcastData = {
           conversationId,
           messageId,
           content,
           editedAt: message.editedAt
-        });
+        };
+
+        // Ajouter les champs de chiffrement si présents
+        if (encrypted && encryptedPayloads && nonce && senderDeviceId) {
+          broadcastData.encrypted = true;
+          broadcastData.encryptedPayloads = encryptedPayloads;
+          broadcastData.nonce = nonce;
+          broadcastData.senderDeviceId = senderDeviceId;
+        }
+
+        io.to(`conversation:${conversationId}`).emit('message_edited', broadcastData);
 
       } catch (error) {
         console.error('Edit message error:', error);

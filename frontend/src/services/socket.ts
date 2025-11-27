@@ -125,9 +125,25 @@ export const removeReaction = (conversationId: string, messageId: string, emoji:
 };
 
 // Edit/Delete helpers
-export const editMessage = (conversationId: string, messageId: string, content: string) => {
+export const editMessage = (
+  conversationId: string,
+  messageId: string,
+  content: string,
+  encryptedData?: EncryptedMessageData
+) => {
   if (socket) {
-    socket.emit('edit_message', { conversationId, messageId, content });
+    if (encryptedData) {
+      // Message chiffré édité
+      socket.emit('edit_message', {
+        conversationId,
+        messageId,
+        content, // Placeholder
+        ...encryptedData
+      });
+    } else {
+      // Message en clair édité
+      socket.emit('edit_message', { conversationId, messageId, content });
+    }
   }
 };
 

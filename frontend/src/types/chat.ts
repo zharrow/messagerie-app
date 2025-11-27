@@ -27,6 +27,13 @@ export interface Message {
   readBy: number[];
   reactions?: Reaction[];
   attachments?: Attachment[];
+  encrypted?: boolean;
+  encryptedPayloads?: Record<string, string>;
+  nonce?: string;
+  senderDeviceId?: string;
+  editedAt?: string;
+  deletedAt?: string;
+  replyTo?: string;
 }
 
 export interface Conversation {

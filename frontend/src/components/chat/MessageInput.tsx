@@ -25,22 +25,19 @@ const MessageInput = ({
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [showCommandAutocomplete, setShowCommandAutocomplete] = useState(false);
 
-  // Command detection
+  // Command detection - useMemo to avoid recalculating on every render
   const commands = [
     { name: '/fire', description: '🔥 Détruire la conversation avec style', icon: Flame }
   ];
 
+  // Compute autocomplete visibility based on input
+  const shouldShowAutocomplete = messageInput.startsWith('/') &&
+    messageInput.length > 0 &&
+    commands.some(cmd => cmd.name.startsWith(messageInput.toLowerCase()));
+
   useEffect(() => {
-    // Show autocomplete if input starts with /
-    if (messageInput.startsWith('/') && messageInput.length > 0) {
-      const matchingCommands = commands.filter(cmd =>
-        cmd.name.startsWith(messageInput.toLowerCase())
-      );
-      setShowCommandAutocomplete(matchingCommands.length > 0);
-    } else {
-      setShowCommandAutocomplete(false);
-    }
-  }, [messageInput]);
+    setShowCommandAutocomplete(shouldShowAutocomplete);
+  }, [shouldShowAutocomplete]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     // Tab to autocomplete /fire

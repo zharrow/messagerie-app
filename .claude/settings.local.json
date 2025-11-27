@@ -24,7 +24,8 @@
       "WebFetch(domain:www.shadcn.io)",
       "WebFetch(domain:raw.githubusercontent.com)",
       "WebSearch",
-      "Bash(npm uninstall:*)"
+      "Bash(npm uninstall:*)",
+      "Bash(npm run lint:*)"
     ],
     "deny": [],
     "ask": []

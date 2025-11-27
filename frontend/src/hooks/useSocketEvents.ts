@@ -6,12 +6,14 @@ interface UseSocketEventsProps {
   selectedConversation: Conversation | null;
   setConversations: React.Dispatch<React.SetStateAction<Conversation[]>>;
   setSelectedConversation: React.Dispatch<React.SetStateAction<Conversation | null>>;
+  invalidateMessageCache?: (messageId: string) => void;
 }
 
 export const useSocketEvents = ({
   selectedConversation,
   setConversations,
   setSelectedConversation,
+  invalidateMessageCache,
 }: UseSocketEventsProps) => {
   const [typingUsers, setTypingUsers] = useState<Map<string, Set<number>>>(new Map());
   const [onlineUsers, setOnlineUsers] = useState<Set<number>>(new Set());
@@ -117,19 +119,50 @@ export const useSocketEvents = ({
       }
     };
 
-    const handleMessageEdited = (data: { conversationId: string; messageId: string; content: string; editedAt: string }) => {
+    const handleMessageEdited = (data: {
+      conversationId: string;
+      messageId: string;
+      content: string;
+      editedAt: string;
+      encrypted?: boolean;
+      encryptedPayloads?: Record<string, string>;
+      nonce?: string;
+      senderDeviceId?: string;
+    }) => {
       console.log('[FRONTEND] Received message_edited event:', data);
       if (selectedConversation?._id === data.conversationId) {
+        // Invalider le cache de déchiffrement pour ce message
+        if (invalidateMessageCache) {
+          console.log('[FRONTEND] Invalidating cache for message:', data.messageId);
+          invalidateMessageCache(data.messageId);
+        }
+
         setSelectedConversation((prev) => {
           if (!prev) return null;
           console.log('[FRONTEND] Updating message', data.messageId, 'with content:', data.content);
+
           return {
             ...prev,
-            messages: prev.messages.map((msg) =>
-              msg._id === data.messageId
-                ? { ...msg, content: data.content }
-                : msg
-            ),
+            messages: prev.messages.map((msg) => {
+              if (msg._id === data.messageId) {
+                const updatedMsg: any = {
+                  ...msg,
+                  content: data.content,
+                  editedAt: data.editedAt
+                };
+
+                // Mettre à jour les champs de chiffrement si présents
+                if (data.encrypted) {
+                  updatedMsg.encrypted = data.encrypted;
+                  updatedMsg.encryptedPayloads = data.encryptedPayloads;
+                  updatedMsg.nonce = data.nonce;
+                  updatedMsg.senderDeviceId = data.senderDeviceId;
+                }
+
+                return updatedMsg;
+              }
+              return msg;
+            }),
           };
         });
       }
@@ -166,7 +199,7 @@ export const useSocketEvents = ({
       socket.off('message_edited', handleMessageEdited);
       socket.off('message_deleted', handleMessageDeleted);
     };
-  }, [selectedConversation, setConversations, setSelectedConversation]);
+  }, [selectedConversation, setConversations, setSelectedConversation, invalidateMessageCache]);
 
   return {
     typingUsers,
