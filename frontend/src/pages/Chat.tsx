@@ -22,6 +22,7 @@ import CreateGroupModal from '@/components/chat/CreateGroupModal';
 import DeleteMessageModal from '@/components/chat/DeleteMessageModal';
 import ProfileSidebar from '@/components/chat/ProfileSidebar';
 import GroupSettingsModal from '@/components/chat/GroupSettingsModal';
+import { FireAnimation } from '@/components/ui/FireAnimation';
 
 const Chat = () => {
   const { user, logout } = useAuth();
@@ -29,6 +30,7 @@ const Chat = () => {
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [showProfileSidebar, setShowProfileSidebar] = useState(false);
   const [showGroupSettings, setShowGroupSettings] = useState(false);
+  const [showFireAnimation, setShowFireAnimation] = useState(false);
 
   // Custom hooks
   const { usersCache, users, setUsers, getUserDisplayName, getUserInitials } = useUserCache();
@@ -203,6 +205,33 @@ const Chat = () => {
     }
   };
 
+  // Handle /fire command
+  const handleFireCommand = async () => {
+    if (!selectedConversation) return;
+
+    // Show fire animation
+    setShowFireAnimation(true);
+
+    // Wait for animation to complete (4 seconds)
+    setTimeout(async () => {
+      try {
+        // Delete the conversation
+        await messagesApi.deleteConversation(selectedConversation._id);
+
+        // Remove from conversations list
+        setConversations((prev) => prev.filter((c) => c._id !== selectedConversation._id));
+        setSelectedConversation(null);
+        setShowProfileSidebar(false);
+        setShowGroupSettings(false);
+      } catch (error) {
+        console.error('Failed to delete conversation:', error);
+        alert('Erreur lors de la destruction de la conversation');
+      } finally {
+        setShowFireAnimation(false);
+      }
+    }, 4000);
+  };
+
   return (
     <div className="h-screen flex bg-gray-50">
       {/* Create Group/Conversation Modal */}
@@ -271,6 +300,7 @@ const Chat = () => {
               onSendMessage={handleSendMessage}
               onSendMessageWithFiles={sendMessageWithFiles}
               onOpenGifPicker={handleOpenGifPicker}
+              onFireCommand={handleFireCommand}
             />
           </>
         ) : (
@@ -329,6 +359,9 @@ const Chat = () => {
           onlineUsers={onlineUsers}
         />
       )}
+
+      {/* Fire Animation */}
+      {showFireAnimation && <FireAnimation duration={4000} />}
     </div>
   );
 };

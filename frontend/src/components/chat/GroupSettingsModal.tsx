@@ -130,7 +130,7 @@ const GroupSettingsModal = ({
                   variant="ghost"
                   size="sm"
                   onClick={() => setShowAddMembers(!showAddMembers)}
-                  className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                  className="text-primary-600 hover:text-primary-700 hover:bg-primary-50"
                 >
                   <UserPlus className="h-4 w-4 mr-1" />
                   Ajouter
@@ -159,7 +159,7 @@ const GroupSettingsModal = ({
                         onClick={() => handleToggleUser(user.id)}
                         className={`flex items-center gap-3 p-2 rounded-lg cursor-pointer transition-colors ${
                           selectedUsers.includes(user.id)
-                            ? 'bg-blue-100 border-2 border-blue-500'
+                            ? 'bg-primary-100 border-2 border-primary-500'
                             : 'bg-white hover:bg-gray-100 border-2 border-transparent'
                         }`}
                       >
@@ -175,7 +175,7 @@ const GroupSettingsModal = ({
                           <p className="text-xs text-gray-500 truncate">{user.email}</p>
                         </div>
                         {selectedUsers.includes(user.id) && (
-                          <div className="h-5 w-5 rounded-full bg-blue-600 flex items-center justify-center">
+                          <div className="h-5 w-5 rounded-full bg-primary-600 flex items-center justify-center">
                             <span className="text-white text-xs">✓</span>
                           </div>
                         )}
@@ -188,7 +188,7 @@ const GroupSettingsModal = ({
                     <Button
                       onClick={handleAddMembers}
                       disabled={isLoading}
-                      className="flex-1 bg-blue-600 hover:bg-blue-700"
+                      className="flex-1 bg-primary-600 hover:bg-primary-700"
                     >
                       Ajouter ({selectedUsers.length})
                     </Button>
@@ -229,7 +229,7 @@ const GroupSettingsModal = ({
                         {isCurrentUser && ' (Vous)'}
                       </p>
                       {isMemberAdmin && (
-                        <p className="text-xs text-blue-600 font-medium">Administrateur</p>
+                        <p className="text-xs text-primary-600 font-medium">Administrateur</p>
                       )}
                     </div>
                     {isAdmin && !isMemberAdmin && !isCurrentUser && (

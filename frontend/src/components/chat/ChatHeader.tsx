@@ -32,7 +32,7 @@ const ChatHeader = ({
       <ShinyText
         text={`${typingUserName} est en train d'écrire...`}
         speed={2}
-        className="text-xs text-blue-600"
+        className="text-xs text-primary-600"
       />
     );
   };
@@ -46,10 +46,10 @@ const ChatHeader = ({
         </div>
         <div className="flex items-center gap-1">
           <Button variant="ghost" size="icon" className="h-10 w-10 rounded-full hover:bg-gray-100">
-            <Phone className="h-5 w-5 text-blue-600" />
+            <Phone className="h-5 w-5 text-primary-600" />
           </Button>
           <Button variant="ghost" size="icon" className="h-10 w-10 rounded-full hover:bg-gray-100">
-            <Video className="h-5 w-5 text-blue-600" />
+            <Video className="h-5 w-5 text-primary-600" />
           </Button>
           <EncryptionBadge variant="compact" />
           {onToggleProfile && (
@@ -59,7 +59,7 @@ const ChatHeader = ({
               onClick={onToggleProfile}
               className="h-10 w-10 rounded-full hover:bg-gray-100"
             >
-              <Info className="h-5 w-5 text-blue-600" />
+              <Info className="h-5 w-5 text-primary-600" />
             </Button>
           )}
         </div>

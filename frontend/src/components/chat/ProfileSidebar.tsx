@@ -59,8 +59,8 @@ const ProfileSidebar = ({
       <div className="flex flex-col items-center gap-3 py-6">
         <div className="relative">
           {isGroup ? (
-            <div className="h-24 w-24 rounded-full bg-blue-100 flex items-center justify-center">
-              <Users className="h-12 w-12 text-blue-600" />
+            <div className="h-24 w-24 rounded-full bg-primary-50 flex items-center justify-center">
+              <Users className="h-12 w-12 text-primary-600" />
             </div>
           ) : (
             <AvatarStatus
@@ -227,8 +227,8 @@ const ProfileSidebar = ({
                 className="flex items-center gap-3 p-3 rounded-lg hover:bg-accent transition-colors cursor-pointer"
                 onClick={() => window.open(fullUrl, '_blank')}
               >
-                <div className="h-10 w-10 rounded bg-blue-100 flex items-center justify-center flex-shrink-0">
-                  <FileText className="h-5 w-5 text-blue-600" />
+                <div className="h-10 w-10 rounded bg-primary-50 flex items-center justify-center flex-shrink-0">
+                  <FileText className="h-5 w-5 text-primary-600" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="font-medium truncate text-sm">{attachment.originalName}</p>
@@ -260,7 +260,7 @@ const ProfileSidebar = ({
           onClick={() => setActiveTab('info')}
           className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
             activeTab === 'info'
-              ? 'border-b-2 border-blue-600 text-blue-600'
+              ? 'border-b-2 border-primary-600 text-primary-600'
               : 'text-gray-600 hover:text-gray-900'
           }`}
         >
@@ -270,7 +270,7 @@ const ProfileSidebar = ({
           onClick={() => setActiveTab('media')}
           className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
             activeTab === 'media'
-              ? 'border-b-2 border-blue-600 text-blue-600'
+              ? 'border-b-2 border-primary-600 text-primary-600'
               : 'text-gray-600 hover:text-gray-900'
           }`}
         >
@@ -280,7 +280,7 @@ const ProfileSidebar = ({
           onClick={() => setActiveTab('files')}
           className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
             activeTab === 'files'
-              ? 'border-b-2 border-blue-600 text-blue-600'
+              ? 'border-b-2 border-primary-600 text-primary-600'
               : 'text-gray-600 hover:text-gray-900'
           }`}
         >

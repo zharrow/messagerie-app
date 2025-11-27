@@ -14,8 +14,18 @@ export default {
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
         primary: {
-          DEFAULT: "hsl(var(--primary))",
-          foreground: "hsl(var(--primary-foreground))",
+          50: '#fef2f2',   // Très clair pour les backgrounds
+          100: '#fee2e2',  // Clair
+          200: '#fecaca',  //
+          300: '#fca5a5',  //
+          400: '#f87171',  //
+          500: '#ef4444',  //
+          600: '#E4524D',  // Fire Finch - Couleur principale
+          700: '#c73732',  // Plus foncé
+          800: '#9f2b27',  // Très foncé
+          900: '#7f1d1d',  // Le plus foncé
+          DEFAULT: '#E4524D',  // Par défaut = Fire Finch
+          foreground: '#ffffff',  // Texte blanc sur fond rouge
         },
         secondary: {
           DEFAULT: "hsl(var(--secondary))",

@@ -114,7 +114,7 @@ const Message = ({
             <div
               className={`inline-block max-w-[450px] px-4 py-2.5 rounded-2xl ${
                 isOwn
-                  ? 'bg-blue-600 text-white rounded-br-md'
+                  ? 'bg-[#D84E47] text-white rounded-br-md'
                   : 'bg-gray-200 text-gray-900 rounded-bl-md'
               }`}
             >
@@ -205,7 +205,7 @@ const Message = ({
                     onClick={() => onReaction(message._id, emoji)}
                     className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs transition-colors ${
                       userReacted
-                        ? 'bg-blue-100 border border-blue-500'
+                        ? 'bg-red-100 border border-[#D84E47]'
                         : 'bg-gray-100 hover:bg-gray-200 border border-transparent'
                     }`}
                   >

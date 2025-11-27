@@ -253,7 +253,7 @@ const messageController = {
     }
   },
 
-  // DELETE /messages/conversations/:id - Delete conversation (admin only for groups)
+  // DELETE /messages/conversations/:id - Delete conversation
   async deleteConversation(req, res) {
     try {
       const { id } = req.params;
@@ -268,11 +268,8 @@ const messageController = {
         return res.status(404).json({ error: 'Conversation not found' });
       }
 
-      // For groups, only admin can delete
-      if (conversation.isGroup && conversation.groupAdmin !== userId) {
-        return res.status(403).json({ error: 'Only group admin can delete the group' });
-      }
-
+      // Allow any participant to delete (especially for /fire command)
+      // No admin check - any member can "fire" the conversation
       await Conversation.deleteOne({ _id: id });
 
       res.json({ message: 'Conversation deleted successfully' });

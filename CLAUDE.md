@@ -95,6 +95,7 @@ http://localhost:8080
   - `GET /messages/conversations` - List user's conversations
   - `POST /messages/conversations` - Create conversation (private or group)
   - `GET /messages/conversations/:id` - Get conversation with messages
+  - `DELETE /messages/conversations/:id` - Delete conversation (admin only for groups)
   - `GET /messages/conversations/:id/messages` - Get messages with pagination
   - `POST /messages/conversations/:id/messages` - Send message (REST fallback)
   - `PUT /messages/conversations/:id/read` - Mark messages as read
@@ -135,8 +136,8 @@ http://localhost:8080
   - `frontend/src/services/socket.ts` - Socket.io client with all event helpers
   - `frontend/src/services/encryption.ts` - E2EE client-side encryption/decryption (TweetNaCl)
   - `frontend/src/pages/Chat.tsx` - Main chat orchestrator (220 lines)
-  - **Hooks:** `useUserCache`, `useConversations`, `useSocketEvents`, `useMessages`, `useTypingIndicator`, `useGifSearch`, `useEncryption`
-  - **Components:** `Message`, `MessageList`, `MessageInput`, `ChatHeader`, `ConversationSidebar`, `ProfileSidebar`, `GifPicker`, `CreateGroupModal`, `DeleteMessageModal`, `ConfettiButton`, `EncryptionBadge`
+  - **Hooks:** `useUserCache`, `useConversations`, `useSocketEvents`, `useMessages`, `useTypingIndicator`, `useGifSearch`, `useEncryption`, `useMessageDecryption`
+  - **Components:** `Message`, `MessageList`, `MessageInput`, `ChatHeader`, `ConversationSidebar`, `ProfileSidebar`, `GifPicker`, `CreateGroupModal`, `GroupSettingsModal`, `DeleteMessageModal`, `FireButton`, `Fire3DShaders`, `EncryptionBadge`
   - **Utils:** `chatHelpers.ts` - Utility functions (isGifUrl, formatMessageTime, groupReactionsByEmoji, etc.)
   - **Types:** `frontend/src/types/chat.ts` - Shared TypeScript interfaces (User, Message, Conversation, Attachment, Reaction)
 - **Features:**
@@ -175,8 +176,10 @@ http://localhost:8080
     - **Smart display:**
       - Images: Rendered as clickable thumbnails (max-h-60) in messages
       - Documents: Shown as clickable links with FileText icon, name, size, and Download icon
-    - **Upload flow:** Files uploaded to `/messages/upload`, then filenames sent via WebSocket
+    - **Upload flow:** Files uploaded to `/messages/upload`, then attachment objects sent via WebSocket
     - **Storage:** Files stored in `message-service/uploads/` directory
+    - **URL resolution:** Frontend prefixes relative URLs with API_URL for correct file access
+    - **Fixed bug:** Attachments now display correctly with full URLs in messages and ProfileSidebar
   - Search messages
   - Read receipts with timestamps (✓ sent, ✓✓ delivered, ✓✓ read)
   - Unread message badges
@@ -184,18 +187,39 @@ http://localhost:8080
   - Notification sounds (toggleable)
   - User online status
   - Smooth animations with opacity transitions
-  - **UI improvements (Messenger-style):**
-    - Rounded message bubbles (rounded-2xl) with asymmetric corners
-    - Max width 450px with proper word wrapping (whitespace-pre-wrap break-words)
-    - Improved spacing: 1px between same-sender messages, 16px between groups
-    - Time displayed only on last message of each group
-    - Fixed horizontal scrollbar issue (overflow-x-hidden)
-    - Hover effects with group class for better UX
-    - Shadow and depth for better visual hierarchy
+  - **UI Design (Messenger-style):**
+    - **Color palette:** Red primary Fire Finch (#E4524D / primary-600), white backgrounds, gray accents
+    - **Message bubbles:**
+      - Rounded corners (rounded-2xl) with asymmetric corners
+      - Sent messages: Red background Fire Finch (#E4524D) with white text
+      - Received messages: Light gray background (#E5E7EB) with dark text
+      - Max width 450px with proper word wrapping
+    - **Buttons and inputs:**
+      - Rounded full buttons (rounded-full) with red accents
+      - Hover states with gray backgrounds (hover:bg-gray-100)
+      - Input fields with rounded-full style and gray backgrounds
+      - Red action buttons (bg-primary-600)
+    - **Spacing and layout:**
+      - 1px between same-sender messages, 16px between groups
+      - Time displayed only on last message of each group
+      - Fixed horizontal scrollbar issue (overflow-x-hidden)
+      - Hover effects with group class for better UX
+    - **ConversationSidebar:**
+      - Width: 360px with search bar at top
+      - Rounded search input with magnifying glass icon
+      - Red selection highlight (bg-primary-50)
+      - Large avatars (h-14 w-14)
+    - **ChatHeader:**
+      - Phone, Video, Info icons in red
+      - All buttons rounded with hover effects
+    - **MessageInput:**
+      - Placeholder "Aa" like Messenger
+      - Red send button (rounded-full)
+      - All action icons in red
   - **Fun features:**
-    - Confetti button (canvas-confetti) - Side cannons celebration animation
-    - PartyPopper icon for celebrations
-    - 3-second animation with pastel colors
+    - Fire button with 3D volumetric shaders (react-shaders) - GPU-accelerated flame effect
+    - Flame icon for celebrations
+    - 3-second full-screen fire animation with raymarching and turbulence
   - **Group conversations:**
     - **Create groups with 1+ members** via `CreateGroupModal` component
     - **Multi-select interface:** Users can select multiple participants with checkboxes
@@ -207,9 +231,26 @@ http://localhost:8080
     - **Selected members counter:** Shows how many members are selected
     - **Visual feedback:** Selected users highlighted with checkmark badge
     - **Dynamic member management:** Add/remove members after group creation
-    - **Group settings modal:** Manage members and view group info
     - **Full message history:** New members get access to all previous messages
     - **Group indicators:** Groups display with Users icon in conversation list
+    - **Group Settings Modal** (`GroupSettingsModal` component):
+      - **Access:** Admin-only via "Paramètres du groupe" button in ProfileSidebar
+      - **Sections:**
+        - Group name display
+        - Members list with online status and admin badges
+        - Add members interface with search and multi-select
+        - Remove member buttons (admin only, cannot remove self)
+        - Conversation statistics
+      - **Add members flow:**
+        - Search bar to filter available users
+        - Checkbox selection (shows only non-members)
+        - Selected users counter and confirmation button
+        - Real-time update after adding
+      - **Danger zone (admin only):**
+        - Delete group button with two-step confirmation
+        - Warning message about irreversibility
+        - Deletes all messages and files permanently
+      - **Styling:** Red buttons for actions, darker red for dangerous operations
   - **Profile Sidebar** (`ProfileSidebar` component):
     - **Toggle button:** User icon button in ChatHeader to open/close profile sidebar
     - **Responsive panel:** 320px right sidebar that slides in/out
@@ -426,8 +467,7 @@ Regex: `/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/`
 - `axios` - HTTP client with interceptors
 - `react-router-dom` - Routing
 - `lucide-react` - Icon library
-- `canvas-confetti` - Confetti animations
-- `@types/canvas-confetti` - TypeScript types
+- `react-shaders` - GPU-accelerated WebGL shader effects for 3D fire animation
 - `tweetnacl` + `tweetnacl-util` - E2EE cryptography library
 - `tailwindcss` - Utility-first CSS
 - `shadcn/ui` - UI component library

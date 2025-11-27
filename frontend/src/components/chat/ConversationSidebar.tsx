@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import AvatarStatus from '@/components/ui/AvatarStatus';
 import ShinyText from '@/components/ui/ShinyText';
+import OvOLogo from '@/components/ui/OvOLogo';
 import { Settings, MessageSquarePlus, Search, Users, MoreHorizontal } from 'lucide-react';
 import type { Conversation, User } from '@/types/chat';
 
@@ -47,7 +48,7 @@ const ConversationSidebar = ({
       <ShinyText
         text={`${typingUserName} est en train d'écrire...`}
         speed={2}
-        className="text-xs text-blue-600"
+        className="text-xs text-primary-600"
       />
     );
   };
@@ -61,7 +62,10 @@ const ConversationSidebar = ({
       {/* Header with user info */}
       <div className="px-4 py-3 border-b">
         <div className="flex items-center justify-between mb-4">
-          <h1 className="text-2xl font-bold">Discussions</h1>
+          <div className="flex items-center gap-2">
+            <OvOLogo size={28} className="text-primary-600" />
+            <h1 className="text-2xl font-bold">OvO</h1>
+          </div>
           <div className="flex items-center gap-1">
             <Button
               variant="ghost"
@@ -96,7 +100,7 @@ const ConversationSidebar = ({
             placeholder="Rechercher dans Messenger"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10 bg-gray-100 border-0 rounded-full focus-visible:ring-1 focus-visible:ring-blue-500"
+            className="pl-10 bg-gray-100 border-0 rounded-full focus-visible:ring-1 focus-visible:ring-primary-500"
           />
         </div>
       </div>
@@ -124,7 +128,7 @@ const ConversationSidebar = ({
                 key={conversation._id}
                 onClick={() => onSelectConversation(conversation)}
                 className={`px-3 py-2 cursor-pointer hover:bg-gray-50 transition-colors ${
-                  isSelected ? 'bg-blue-50' : ''
+                  isSelected ? 'bg-primary-50' : ''
                 }`}
               >
                 <div className="flex items-center gap-3">
@@ -137,7 +141,7 @@ const ConversationSidebar = ({
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between mb-0.5">
-                      <p className={`font-medium truncate ${isSelected ? 'text-blue-600' : 'text-gray-900'}`}>
+                      <p className={`font-medium truncate ${isSelected ? 'text-primary-600' : 'text-gray-900'}`}>
                         {getConversationName(conversation)}
                       </p>
                       {conversation.isGroup && (
