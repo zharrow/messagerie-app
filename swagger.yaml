@@ -1,0 +1,1188 @@
+openapi: 3.0.3
+info:
+  title: OvO Messaging API
+  description: |
+    **OvO** - Messagerie ultra-sécurisée avec chiffrement End-to-End (E2EE)
+
+    Une alternative moderne à Teams/Slack avec focus sur la privacy et la sécurité.
+
+    ## Fonctionnalités principales
+    - 🔐 Chiffrement End-to-End (E2EE) avec TweetNaCl
+    - ⚡ Real-time messaging via WebSocket
+    - 👥 Conversations privées et groupes
+    - 📎 Partage de fichiers (images, documents)
+    - 😀 Réactions emoji
+    - ✏️ Édition et suppression de messages
+    - 🔔 Notifications en temps réel
+
+    ## Architecture
+    - Frontend: React + TypeScript + Vite
+    - Backend: Microservices (Node.js + Express)
+    - Databases: PostgreSQL + MongoDB + Redis
+    - Gateway: Traefik
+    - Deployment: Vercel + Supabase (cloud) ou Docker (self-hosted)
+
+    ## Sécurité
+    - JWT Authentication (Access + Refresh tokens)
+    - E2EE avec Curve25519 (TweetNaCl)
+    - Row Level Security (RLS) sur Supabase
+    - Rate limiting
+    - CORS configuré
+
+  version: 1.0.0
+  contact:
+    name: OvO Team
+    email: contact@ovo-chat.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost
+    description: Développement local (Docker)
+  - url: https://ovo-messaging.vercel.app
+    description: Production (Vercel + Supabase)
+
+tags:
+  - name: Authentication
+    description: Gestion de l'authentification et des tokens JWT
+  - name: Users
+    description: Gestion des utilisateurs et profils
+  - name: Encryption Keys
+    description: Gestion des clés E2EE (End-to-End Encryption)
+  - name: Conversations
+    description: Conversations privées et groupes
+  - name: Messages
+    description: Envoi, réception et gestion des messages
+  - name: Reactions
+    description: Réactions emoji sur les messages
+  - name: Files
+    description: Upload et gestion des fichiers
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT access token obtenu via /auth/login
+
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        email:
+          type: string
+          format: email
+          example: alice@example.com
+        first_name:
+          type: string
+          example: Alice
+        last_name:
+          type: string
+          example: Dupont
+        profile_photo_url:
+          type: string
+          nullable: true
+          example: https://example.com/avatar.jpg
+        bio:
+          type: string
+          nullable: true
+          example: Développeuse passionnée
+        status:
+          type: string
+          enum: [online, offline, busy, away]
+          example: online
+        status_message:
+          type: string
+          nullable: true
+          example: En réunion jusqu'à 15h
+        last_seen_at:
+          type: string
+          format: date-time
+          example: 2025-11-28T10:00:00Z
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    UserKey:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        user_id:
+          type: integer
+          example: 1
+        device_id:
+          type: string
+          example: 5lVnA2I9HsnGa6aOUSzvAA
+        public_key:
+          type: string
+          description: Base64 encoded Curve25519 public key
+          example: xY7sK9p2Lm3nQ8rT4vW6yZ1aB5cD7eF9gH0iJ2kL4mN
+        key_fingerprint:
+          type: string
+          description: SHA-512 fingerprint (hex)
+          example: a1b2c3d4e5f6...
+        is_active:
+          type: boolean
+          example: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    Conversation:
+      type: object
+      properties:
+        _id:
+          type: string
+          example: 507f1f77bcf86cd799439011
+        participants:
+          type: array
+          items:
+            type: integer
+          example: [1, 2, 3]
+        isGroup:
+          type: boolean
+          example: false
+        groupName:
+          type: string
+          nullable: true
+          example: Équipe Projet X
+        groupAdmin:
+          type: integer
+          nullable: true
+          example: 1
+        lastMessage:
+          type: object
+          properties:
+            content:
+              type: string
+              example: Salut, ça va ?
+            from:
+              type: integer
+              example: 1
+            createdAt:
+              type: string
+              format: date-time
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    Message:
+      type: object
+      properties:
+        _id:
+          type: string
+          example: 507f1f77bcf86cd799439011
+        from:
+          type: integer
+          example: 1
+        content:
+          type: string
+          example: Bonjour !
+        encrypted:
+          type: boolean
+          example: true
+          description: Si true, le contenu est chiffré E2EE
+        encryptedPayloads:
+          type: object
+          additionalProperties:
+            type: string
+          example:
+            "2:deviceId123": "xY7sK9p2Lm3nQ8rT4vW6yZ..."
+          description: Map de userId:deviceId vers payload chiffré
+        nonce:
+          type: string
+          example: aBcDeF123456
+          description: Nonce pour le déchiffrement (base64)
+        senderDeviceId:
+          type: string
+          example: 5lVnA2I9HsnGa6aOUSzvAA
+        attachments:
+          type: array
+          items:
+            $ref: '#/components/schemas/Attachment'
+        readBy:
+          type: array
+          items:
+            type: object
+            properties:
+              userId:
+                type: integer
+              readAt:
+                type: string
+                format: date-time
+        reactions:
+          type: array
+          items:
+            $ref: '#/components/schemas/Reaction'
+        replyTo:
+          type: string
+          nullable: true
+          example: 507f1f77bcf86cd799439010
+        editedAt:
+          type: string
+          format: date-time
+          nullable: true
+        deletedAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+
+    Attachment:
+      type: object
+      properties:
+        filename:
+          type: string
+          example: document_1638360000000.pdf
+        originalName:
+          type: string
+          example: Rapport Q4 2024.pdf
+        url:
+          type: string
+          example: /messages/uploads/document_1638360000000.pdf
+        mimeType:
+          type: string
+          example: application/pdf
+        size:
+          type: integer
+          example: 524288
+        encrypted:
+          type: boolean
+          example: false
+        encryptedData:
+          type: string
+          nullable: true
+
+    Reaction:
+      type: object
+      properties:
+        emoji:
+          type: string
+          example: 👍
+        userId:
+          type: integer
+          example: 2
+        createdAt:
+          type: string
+          format: date-time
+
+    AuthResponse:
+      type: object
+      properties:
+        access_token:
+          type: string
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        refresh_token:
+          type: string
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        user:
+          $ref: '#/components/schemas/User'
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          example: Invalid credentials
+
+paths:
+  # ============================================
+  # AUTHENTICATION
+  # ============================================
+  /auth/login:
+    post:
+      tags:
+        - Authentication
+      summary: Connexion utilisateur
+      description: Authentifie un utilisateur et retourne des tokens JWT
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: alice@example.com
+                password:
+                  type: string
+                  format: password
+                  example: Alice123
+                rememberMe:
+                  type: boolean
+                  example: true
+                  description: Si true, refresh token valide 30 jours (sinon 1 jour)
+      responses:
+        '200':
+          description: Connexion réussie
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          description: Identifiants invalides
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/refresh:
+    post:
+      tags:
+        - Authentication
+      summary: Rafraîchir le token d'accès
+      description: Obtenir un nouveau access token avec un refresh token valide
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - refresh_token
+              properties:
+                refresh_token:
+                  type: string
+                  example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+      responses:
+        '200':
+          description: Token rafraîchi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  access_token:
+                    type: string
+                  refresh_token:
+                    type: string
+        '401':
+          description: Refresh token invalide ou expiré
+
+  /auth/logout:
+    post:
+      tags:
+        - Authentication
+      summary: Déconnexion
+      description: Invalide les tokens (blacklist)
+      security:
+        - BearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                refresh_token:
+                  type: string
+      responses:
+        '200':
+          description: Déconnexion réussie
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Logged out successfully
+
+  # ============================================
+  # USERS
+  # ============================================
+  /users/register:
+    post:
+      tags:
+        - Users
+      summary: Inscription d'un nouvel utilisateur
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+                - first_name
+                - last_name
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  format: password
+                  description: Min 8 caractères, majuscule, minuscule, chiffre
+                first_name:
+                  type: string
+                last_name:
+                  type: string
+      responses:
+        '201':
+          description: Utilisateur créé
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          description: Email déjà utilisé ou mot de passe invalide
+
+  /users:
+    get:
+      tags:
+        - Users
+      summary: Liste des utilisateurs
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: query
+          name: search
+          schema:
+            type: string
+          description: Recherche par nom ou email
+      responses:
+        '200':
+          description: Liste des utilisateurs
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  users:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/User'
+
+  /users/{id}:
+    get:
+      tags:
+        - Users
+      summary: Obtenir un utilisateur par ID
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Utilisateur trouvé
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user:
+                    $ref: '#/components/schemas/User'
+        '404':
+          description: Utilisateur non trouvé
+
+    put:
+      tags:
+        - Users
+      summary: Modifier son profil
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                first_name:
+                  type: string
+                last_name:
+                  type: string
+      responses:
+        '200':
+          description: Profil mis à jour
+
+  /users/{id}/profile:
+    get:
+      tags:
+        - Users
+      summary: Obtenir le profil complet
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Profil complet
+
+    put:
+      tags:
+        - Users
+      summary: Mettre à jour le profil (photo, bio)
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                profile_photo_url:
+                  type: string
+                bio:
+                  type: string
+      responses:
+        '200':
+          description: Profil mis à jour
+
+  /users/{id}/status:
+    put:
+      tags:
+        - Users
+      summary: Mettre à jour le statut (en ligne, occupé, etc.)
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  enum: [online, offline, busy, away]
+                status_message:
+                  type: string
+      responses:
+        '200':
+          description: Statut mis à jour
+
+  # ============================================
+  # ENCRYPTION KEYS (E2EE)
+  # ============================================
+  /users/keys:
+    post:
+      tags:
+        - Encryption Keys
+      summary: Uploader sa clé publique
+      description: Envoie la clé publique E2EE pour permettre à d'autres de chiffrer des messages
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - device_id
+                - public_key
+              properties:
+                device_id:
+                  type: string
+                  example: 5lVnA2I9HsnGa6aOUSzvAA
+                public_key:
+                  type: string
+                  example: xY7sK9p2Lm3nQ8rT4vW6yZ1aB5cD7eF9gH0iJ2kL4mN
+                key_fingerprint:
+                  type: string
+                  example: a1b2c3d4e5f6...
+      responses:
+        '201':
+          description: Clé enregistrée
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserKey'
+
+  /users/keys/me:
+    get:
+      tags:
+        - Encryption Keys
+      summary: Obtenir ses propres clés
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Liste des clés de l'utilisateur
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  keys:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/UserKey'
+
+  /users/{userId}/keys:
+    get:
+      tags:
+        - Encryption Keys
+      summary: Obtenir les clés publiques d'un utilisateur
+      description: Nécessaire pour chiffrer des messages pour cet utilisateur
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Clés publiques de l'utilisateur
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  keys:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/UserKey'
+
+  /users/keys/bulk:
+    post:
+      tags:
+        - Encryption Keys
+      summary: Obtenir les clés de plusieurs utilisateurs (groupes)
+      security:
+        - BearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - user_ids
+              properties:
+                user_ids:
+                  type: array
+                  items:
+                    type: integer
+                  example: [1, 2, 3]
+      responses:
+        '200':
+          description: Clés publiques de tous les utilisateurs
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  keys:
+                    type: object
+                    additionalProperties:
+                      type: array
+                      items:
+                        $ref: '#/components/schemas/UserKey'
+
+  /users/keys/{device_id}:
+    delete:
+      tags:
+        - Encryption Keys
+      summary: Désactiver une clé (déconnexion d'un appareil)
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: device_id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Clé désactivée
+
+  # ============================================
+  # CONVERSATIONS
+  # ============================================
+  /messages/conversations:
+    get:
+      tags:
+        - Conversations
+      summary: Liste des conversations de l'utilisateur
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Liste des conversations
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  conversations:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Conversation'
+
+    post:
+      tags:
+        - Conversations
+      summary: Créer une conversation (privée ou groupe)
+      security:
+        - BearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - participants
+              properties:
+                participants:
+                  type: array
+                  items:
+                    type: integer
+                  example: [2, 3]
+                  description: IDs des participants (sans soi-même)
+                isGroup:
+                  type: boolean
+                  example: true
+                groupName:
+                  type: string
+                  example: Équipe Projet X
+      responses:
+        '201':
+          description: Conversation créée
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Conversation'
+
+  /messages/conversations/{id}:
+    get:
+      tags:
+        - Conversations
+      summary: Obtenir une conversation avec ses messages
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 50
+        - in: query
+          name: offset
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: Conversation et messages
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Conversation'
+
+    delete:
+      tags:
+        - Conversations
+      summary: Supprimer une conversation (admin uniquement pour groupes)
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Conversation supprimée
+
+  /messages/conversations/{id}/messages:
+    get:
+      tags:
+        - Messages
+      summary: Obtenir les messages d'une conversation
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 50
+        - in: query
+          name: offset
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: Liste des messages
+
+    post:
+      tags:
+        - Messages
+      summary: Envoyer un message (REST fallback, préférer WebSocket)
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - content
+              properties:
+                content:
+                  type: string
+                  example: Bonjour !
+                encrypted:
+                  type: boolean
+                  example: true
+                encryptedPayloads:
+                  type: object
+                nonce:
+                  type: string
+                senderDeviceId:
+                  type: string
+                replyTo:
+                  type: string
+      responses:
+        '201':
+          description: Message envoyé
+
+  /messages/conversations/{id}/read:
+    put:
+      tags:
+        - Messages
+      summary: Marquer les messages comme lus
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Messages marqués comme lus
+
+  /messages/conversations/{id}/participants:
+    post:
+      tags:
+        - Conversations
+      summary: Ajouter des membres à un groupe
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - user_ids
+              properties:
+                user_ids:
+                  type: array
+                  items:
+                    type: integer
+                  example: [4, 5]
+      responses:
+        '200':
+          description: Membres ajoutés
+
+  /messages/conversations/{id}/participants/{participantId}:
+    delete:
+      tags:
+        - Conversations
+      summary: Retirer un membre d'un groupe
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+        - in: path
+          name: participantId
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Membre retiré
+
+  # ============================================
+  # FILES
+  # ============================================
+  /messages/upload:
+    post:
+      tags:
+        - Files
+      summary: Upload de fichiers
+      description: Max 5 fichiers, 10MB chacun
+      security:
+        - BearerAuth: []
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                files:
+                  type: array
+                  items:
+                    type: string
+                    format: binary
+                  maxItems: 5
+      responses:
+        '200':
+          description: Fichiers uploadés
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  files:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Attachment'
+
+  /messages/uploads/{filename}:
+    get:
+      tags:
+        - Files
+      summary: Récupérer un fichier uploadé
+      parameters:
+        - in: path
+          name: filename
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Fichier
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+
+  # ============================================
+  # SEARCH
+  # ============================================
+  /messages/search:
+    get:
+      tags:
+        - Messages
+      summary: Rechercher dans les messages
+      description: Note - la recherche ne fonctionne que sur les messages non chiffrés
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: query
+          name: q
+          required: true
+          schema:
+            type: string
+          description: Terme de recherche
+      responses:
+        '200':
+          description: Résultats de recherche
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  results:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        conversation:
+                          $ref: '#/components/schemas/Conversation'
+                        message:
+                          $ref: '#/components/schemas/Message'
+
+  # ============================================
+  # WEBSOCKET EVENTS (Documentation only)
+  # ============================================
+  /socket.io:
+    get:
+      tags:
+        - Messages
+      summary: WebSocket Connection
+      description: |
+        **Connection WebSocket pour le real-time**
+
+        Endpoint: `ws://localhost/messages/socket.io` ou `wss://ovo-messaging.vercel.app/messages/socket.io`
+
+        ## Événements Client → Serveur
+
+        ### `send_message`
+        Envoyer un message dans une conversation
+        ```json
+        {
+          "conversationId": "507f1f77bcf86cd799439011",
+          "content": "Bonjour !",
+          "encrypted": true,
+          "encryptedPayloads": { "2:deviceId": "base64..." },
+          "nonce": "aBcDeF...",
+          "senderDeviceId": "5lVnA2I9...",
+          "attachments": [],
+          "replyTo": null
+        }
+        ```
+
+        ### `add_reaction`
+        Ajouter une réaction emoji
+        ```json
+        {
+          "conversationId": "507f1f77bcf86cd799439011",
+          "messageId": "507f1f77bcf86cd799439010",
+          "emoji": "👍"
+        }
+        ```
+
+        ### `remove_reaction`
+        Retirer une réaction
+        ```json
+        {
+          "conversationId": "507f1f77bcf86cd799439011",
+          "messageId": "507f1f77bcf86cd799439010",
+          "emoji": "👍"
+        }
+        ```
+
+        ### `edit_message`
+        Éditer un message
+        ```json
+        {
+          "conversationId": "507f1f77bcf86cd799439011",
+          "messageId": "507f1f77bcf86cd799439010",
+          "newContent": "Bonjour modifié !"
+        }
+        ```
+
+        ### `delete_message`
+        Supprimer un message (soft delete)
+        ```json
+        {
+          "conversationId": "507f1f77bcf86cd799439011",
+          "messageId": "507f1f77bcf86cd799439010"
+        }
+        ```
+
+        ### `typing_start` / `typing_stop`
+        Indicateurs de saisie
+        ```json
+        {
+          "conversationId": "507f1f77bcf86cd799439011"
+        }
+        ```
+
+        ### `mark_read`
+        Marquer comme lu
+        ```json
+        {
+          "conversationId": "507f1f77bcf86cd799439011",
+          "lastMessageId": "507f1f77bcf86cd799439010"
+        }
+        ```
+
+        ### `join_conversation` / `leave_conversation`
+        Rejoindre/quitter une room
+        ```json
+        {
+          "conversationId": "507f1f77bcf86cd799439011"
+        }
+        ```
+
+        ## Événements Serveur → Client
+
+        ### `new_message`
+        Nouveau message reçu
+
+        ### `reaction_added` / `reaction_removed`
+        Réaction ajoutée/retirée
+
+        ### `message_edited`
+        Message édité
+
+        ### `message_deleted`
+        Message supprimé
+
+        ### `user_typing`
+        Utilisateur en train d'écrire
+
+        ### `messages_read`
+        Messages marqués comme lus
+
+        ### `user_online` / `user_offline`
+        Statut de présence
+      responses:
+        '101':
+          description: Switching Protocols (WebSocket upgrade)

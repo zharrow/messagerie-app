@@ -216,12 +216,24 @@ class EncryptionService {
 
       // Find the payload for this device
       const payloadKey = `${currentUserId}:${currentDeviceId}`;
-      const encryptedPayload = encryptedPayloads[payloadKey];
+      let encryptedPayload = encryptedPayloads[payloadKey];
 
+      // Fallback: if exact deviceId not found, try to find any payload for this user
       if (!encryptedPayload) {
-        console.warn('[DECRYPT] No encrypted payload found for this device. Looking for:', payloadKey);
+        console.warn('[DECRYPT] No exact payload found for:', payloadKey);
         console.warn('[DECRYPT] Available keys:', Object.keys(encryptedPayloads || {}));
-        return null;
+
+        // Try to find ANY payload for this userId
+        const userPayloads = Object.entries(encryptedPayloads || {})
+          .filter(([key]) => key.startsWith(`${currentUserId}:`));
+
+        if (userPayloads.length > 0) {
+          console.log('[DECRYPT] Found alternative payload for user:', userPayloads[0][0]);
+          encryptedPayload = userPayloads[0][1];
+        } else {
+          console.error('[DECRYPT] No payload found for user ID:', currentUserId);
+          return null;
+        }
       }
 
       // Decode everything

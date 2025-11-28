@@ -6,6 +6,7 @@ const publicRoutes = require('./routes/public');
 const internalRoutes = require('./routes/internal');
 const User = require('./models/User');
 const UserKey = require('./models/UserKey');
+const { seedUsers } = require('./seeders/seedUsers');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -29,6 +30,9 @@ initDatabase()
     // Initialize user_keys table for E2EE
     await UserKey.initializeTable();
     console.log('User keys table initialized');
+
+    // Seed initial users
+    await seedUsers();
 
     app.listen(PORT, () => {
       console.log(`User Service running on port ${PORT}`);

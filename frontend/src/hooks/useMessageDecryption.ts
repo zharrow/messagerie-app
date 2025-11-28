@@ -129,10 +129,21 @@ export const useMessageDecryption = (userId: number | undefined) => {
     decryptMessage(message).then(content => {
       if (content && content !== decryptedMessages[message._id]) {
         // Le résultat sera mis en cache et déclenchera un re-render
-        console.log(`Message ${message._id} déchiffré:`, content.substring(0, 50));
+        console.log(`[E2EE] Message ${message._id} déchiffré avec succès`);
+      } else if (!content) {
+        // Si le déchiffrement échoue, mettre un message d'erreur en cache
+        console.error(`[E2EE] Échec du déchiffrement pour ${message._id}`);
+        setDecryptedMessages(prev => ({
+          ...prev,
+          [message._id]: '[Message chiffré - Impossible à déchiffrer]'
+        }));
       }
     }).catch(err => {
-      console.error('Erreur lors du déchiffrement automatique:', err);
+      console.error('[E2EE] Erreur lors du déchiffrement automatique:', err);
+      setDecryptedMessages(prev => ({
+        ...prev,
+        [message._id]: '[Message chiffré - Erreur technique]'
+      }));
     });
 
     return '[Déchiffrement en cours...]';
