@@ -28,7 +28,7 @@ services:
   # ===================
   user-service:
     build:
-      context: ./user-service
+      context: ../services/user-service
       dockerfile: Dockerfile
     container_name: user-service
     restart: unless-stopped
@@ -60,7 +60,7 @@ services:
   # ===================
   auth-service:
     build:
-      context: ./auth-service
+      context: ../services/auth-service
       dockerfile: Dockerfile
     container_name: auth-service
     restart: unless-stopped
@@ -92,7 +92,7 @@ services:
   # ===================
   message-service:
     build:
-      context: ./message-service
+      context: ../services/message-service
       dockerfile: Dockerfile
     container_name: message-service
     restart: unless-stopped
@@ -176,7 +176,7 @@ services:
   # ===================
   frontend:
     build:
-      context: ./frontend
+      context: ../frontend
       dockerfile: Dockerfile
     container_name: frontend
     restart: unless-stopped

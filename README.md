@@ -45,6 +45,7 @@ MONGO_INITDB_DATABASE=messages_db
 
 3. **Lancer l'application**
 ```bash
+cd infrastructure
 docker-compose up -d --build
 ```
 
@@ -68,11 +69,13 @@ Trois utilisateurs sont créés automatiquement au démarrage :
 
 ### Arrêter l'application
 ```bash
+cd infrastructure
 docker-compose down
 ```
 
 ### Voir les logs
 ```bash
+cd infrastructure
 # Tous les services
 docker-compose logs -f
 
@@ -84,11 +87,13 @@ docker-compose logs -f message-service
 
 ### Redémarrer un service
 ```bash
+cd infrastructure
 docker-compose restart user-service
 ```
 
 ### Reconstruire après modification du code
 ```bash
+cd infrastructure
 docker-compose up -d --build
 ```
 
@@ -105,9 +110,39 @@ curl http://localhost/messages/health
 
 Tous doivent retourner `{"status":"ok"}`
 
-## 📖 Documentation technique
+## 📖 Documentation
 
-Pour plus de détails sur l'architecture et les fonctionnalités, consultez [README_DETAILS.md](README_DETAILS.md)
+### Documentation principale
+- **[CLAUDE.md](CLAUDE.md)** - Instructions techniques complètes pour Claude Code
+- **[TP_RENDU.md](TP_RENDU.md)** - Document de rendu pour le TP
+
+### Documentation technique
+- **[docs/](docs/)** - Documentation technique détaillée
+  - [E2EE Implementation](docs/E2EE_IMPLEMENTATION_SUMMARY.md) - Chiffrement end-to-end
+  - [Railway Deployment](docs/RAILWAY_DEPLOYMENT.md) - Guide de déploiement
+  - [Railway Variables](docs/RAILWAY_ENV_VARIABLES.md) - Configuration Railway
+  - [Railway Troubleshooting](docs/RAILWAY_QUICK_FIX.md) - Dépannage rapide
+
+### Documentation modules
+- **[frontend/README.md](frontend/README.md)** - Documentation du frontend React
+- **[services/shared-lib/README.md](services/shared-lib/README.md)** - Bibliothèque de code partagé
+
+## 📁 Structure du projet
+
+```
+FullStack/
+├── services/           # Microservices backend
+│   ├── user-service/
+│   ├── auth-service/
+│   ├── message-service/
+│   └── shared-lib/
+├── frontend/           # Application React
+├── infrastructure/     # Configuration Docker
+│   ├── traefik/
+│   └── docker-compose.yml
+├── docs/              # Documentation technique
+└── archive/           # Fichiers obsolètes
+```
 
 ## ⚠️ Remarques
 
