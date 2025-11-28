@@ -56,7 +56,7 @@ const Register = () => {
           <div className="flex justify-center mb-4">
             <OvOLogo size={48} className="text-primary-600" />
           </div>
-          <CardTitle className="text-2xl font-bold text-center">OvO</CardTitle>
+          <CardTitle className="text-2xl font-bold text-center font-display">OvO</CardTitle>
           <CardDescription className="text-center">
             Créez votre compte pour commencer à discuter
           </CardDescription>

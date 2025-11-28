@@ -64,7 +64,7 @@ const ConversationSidebar = ({
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <OvOLogo size={28} className="text-primary-600" />
-            <h1 className="text-2xl font-bold">OvO</h1>
+            <h1 className="text-2xl font-bold font-display">OvO</h1>
           </div>
           <div className="flex items-center gap-1">
             <Button
