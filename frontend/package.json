@@ -26,6 +26,7 @@
     "react-dom": "^19.2.0",
     "react-router-dom": "^6.28.0",
     "react-shaders": "^0.0.4",
+    "serve": "^14.2.1",
     "socket.io-client": "^4.8.1",
     "tailwind-merge": "^2.5.4",
     "tweetnacl": "^1.0.3",
