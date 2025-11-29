@@ -1,5 +1,7 @@
 # Application de Messagerie en Temps Réel avec Architecture Microservices
 
+[Documentation Google Docs](https://docs.google.com/document/d/1s_H_tcw6pOrThEeK5_2qoMv27AEVI7aoP3tqPWYttd4/edit?usp=sharing)
+
 > **TP Microservices - M1 Ynov Fullstack 2025/2026**
 > Application de chat en temps réel avec chiffrement end-to-end (E2EE), architecture microservices complète et API Gateway Traefik.
 
