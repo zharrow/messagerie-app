@@ -126,8 +126,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setUser(null);
       disconnectSocket();
 
-      // Clear encryption keys on logout
-      encryptionService.clearKeys();
+      // IMPORTANT: Do NOT clear encryption keys on logout!
+      // E2EE keys are device-specific and must persist to decrypt old messages
+      // Only clear them when explicitly requested by user (device removal)
       setIsEncryptionEnabled(false);
     }
   };

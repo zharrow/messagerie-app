@@ -34,9 +34,21 @@ const messageController = {
         return res.status(404).json({ error: 'Conversation not found' });
       }
 
-      // Filter out deleted messages
+      // Filter out deleted messages and convert Map fields to plain objects
       if (conversation.messages) {
-        conversation.messages = conversation.messages.filter(msg => !msg.deletedAt);
+        conversation.messages = conversation.messages
+          .filter(msg => !msg.deletedAt)
+          .map(msg => {
+            // Convert encryptedPayloads Map to plain object if it exists
+            if (msg.encryptedPayloads instanceof Map) {
+              msg.encryptedPayloads = Object.fromEntries(msg.encryptedPayloads);
+            } else if (msg.encryptedPayloads && typeof msg.encryptedPayloads === 'object' && msg.encryptedPayloads.$type === 'Map') {
+              // Handle MongoDB Map serialization
+              const entries = Object.entries(msg.encryptedPayloads).filter(([key]) => key !== '$type');
+              msg.encryptedPayloads = Object.fromEntries(entries);
+            }
+            return msg;
+          });
       }
 
       res.json(conversation);

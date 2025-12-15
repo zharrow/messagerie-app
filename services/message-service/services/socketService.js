@@ -92,10 +92,17 @@ const initializeSocket = (server) => {
 
         const savedMessage = conversation.messages[conversation.messages.length - 1];
 
+        // Convert to plain object and handle Map serialization
+        const messageToSend = savedMessage.toObject ? savedMessage.toObject() : savedMessage;
+        if (messageToSend.encryptedPayloads instanceof Map) {
+          messageToSend.encryptedPayloads = Object.fromEntries(messageToSend.encryptedPayloads);
+          console.log('[E2EE] Converted encryptedPayloads Map to object:', Object.keys(messageToSend.encryptedPayloads));
+        }
+
         // Broadcast to all participants in the conversation
         io.to(`conversation:${conversationId}`).emit('new_message', {
           conversationId,
-          message: savedMessage
+          message: messageToSend
         });
 
       } catch (error) {

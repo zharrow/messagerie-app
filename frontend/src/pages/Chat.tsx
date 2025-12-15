@@ -33,7 +33,7 @@ const Chat = () => {
   const [showFireAnimation, setShowFireAnimation] = useState(false);
 
   // Custom hooks
-  const { users, setUsers, getUserDisplayName, getUserInitials } = useUserCache();
+  const { users, setUsers, getUserDisplayName, getUserInitials } = useUserCache(user);
 
   const {
     conversations,

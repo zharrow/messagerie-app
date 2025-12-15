@@ -80,7 +80,7 @@ class EncryptionService {
     const hash = nacl.hash(publicKey);
     // Return first 32 bytes as hex
     return Array.from(hash.slice(0, 32))
-      .map(b => b.toString(16).padStart(2, '0'))
+      .map((b: unknown) => (b as number).toString(16).padStart(2, '0'))
       .join('');
   }
 

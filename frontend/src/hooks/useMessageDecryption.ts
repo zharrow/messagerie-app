@@ -24,18 +24,25 @@ export const useMessageDecryption = (userId: number | undefined) => {
   const getSenderPublicKey = async (senderId: number): Promise<string | null> => {
     // Vérifier le cache
     if (senderKeys[senderId]) {
+      console.log(`[E2EE] Clé publique trouvée en cache pour user ${senderId}`);
       return senderKeys[senderId];
     }
 
     try {
-      const { keys } = await userApi.getUserPublicKeys(senderId);
+      console.log(`[E2EE] Récupération de la clé publique pour user ${senderId}`);
+      const response = await userApi.getUserPublicKeys(senderId);
+      console.log(`[E2EE] Response:`, response);
+      const { keys } = response;
       if (keys && keys.length > 0) {
         const publicKey = keys[0].public_key;
+        console.log(`[E2EE] Clé publique trouvée:`, publicKey.substring(0, 10) + '...');
         setSenderKeys(prev => ({ ...prev, [senderId]: publicKey }));
         return publicKey;
+      } else {
+        console.error(`[E2EE] Aucune clé trouvée pour user ${senderId}. Keys:`, keys);
       }
     } catch (error) {
-      console.error(`Erreur lors de la récupération de la clé publique pour l'utilisateur ${senderId}:`, error);
+      console.error(`[E2EE] Erreur lors de la récupération de la clé publique pour l'utilisateur ${senderId}:`, error);
     }
 
     return null;
