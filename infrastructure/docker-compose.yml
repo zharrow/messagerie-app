@@ -32,6 +32,8 @@ services:
       dockerfile: Dockerfile
     container_name: user-service
     restart: unless-stopped
+    ports:
+      - "3001:3001"  # Temporary: expose for direct access
     environment:
       - NODE_ENV=development
       - PORT=${USER_SERVICE_PORT:-3001}
@@ -64,6 +66,8 @@ services:
       dockerfile: Dockerfile
     container_name: auth-service
     restart: unless-stopped
+    ports:
+      - "3002:3002"  # Temporary: expose for direct access
     environment:
       - NODE_ENV=development
       - PORT=${AUTH_SERVICE_PORT:-3002}
@@ -96,6 +100,8 @@ services:
       dockerfile: Dockerfile
     container_name: message-service
     restart: unless-stopped
+    ports:
+      - "3003:3003"  # Temporary: expose for direct access
     environment:
       - NODE_ENV=development
       - PORT=${MESSAGE_SERVICE_PORT:-3003}
@@ -180,6 +186,8 @@ services:
       dockerfile: Dockerfile
     container_name: frontend
     restart: unless-stopped
+    ports:
+      - "80:80"  # Expose frontend with nginx proxy to services
     networks:
       - internal
     labels:
