@@ -10,10 +10,9 @@ entryPoints:
     address: ":443"
 
 providers:
-  docker:
-    endpoint: "unix:///var/run/docker.sock"
-    exposedByDefault: false
-    network: internal
+  # Use file provider instead of docker (macOS compatibility)
+  file:
+    filename: /etc/traefik/dynamic.yml
     watch: true
 
 log:

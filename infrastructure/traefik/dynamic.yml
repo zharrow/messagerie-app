@@ -1,0 +1,56 @@
+# Dynamic configuration for Traefik
+http:
+  routers:
+    # User Service Router
+    user-service:
+      rule: "PathPrefix(`/users`)"
+      service: user-service
+      entryPoints:
+        - web
+
+    # Auth Service Router
+    auth-service:
+      rule: "PathPrefix(`/auth`)"
+      service: auth-service
+      entryPoints:
+        - web
+
+    # Message Service Router
+    message-service:
+      rule: "PathPrefix(`/messages`)"
+      service: message-service
+      entryPoints:
+        - web
+
+    # Frontend Router (lowest priority)
+    frontend:
+      rule: "PathPrefix(`/`)"
+      service: frontend
+      entryPoints:
+        - web
+      priority: 1
+
+  services:
+    # User Service
+    user-service:
+      loadBalancer:
+        servers:
+          - url: "http://user-service:3001"
+
+    # Auth Service
+    auth-service:
+      loadBalancer:
+        servers:
+          - url: "http://auth-service:3002"
+
+    # Message Service
+    message-service:
+      loadBalancer:
+        servers:
+          - url: "http://message-service:3003"
+
+    # Frontend
+    frontend:
+      loadBalancer:
+        servers:
+          - url: "http://frontend:80"

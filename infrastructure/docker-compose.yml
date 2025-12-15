@@ -13,8 +13,8 @@ services:
       - "443:443"
       - "8080:8080"  # Dashboard
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./traefik/traefik.yml:/etc/traefik/traefik.yml:ro
+      - ./traefik/dynamic.yml:/etc/traefik/dynamic.yml:ro
     networks:
       - public
       - internal
@@ -186,8 +186,11 @@ services:
       dockerfile: Dockerfile
     container_name: frontend
     restart: unless-stopped
-    ports:
-      - "80:80"  # Expose frontend with nginx proxy to services
+    # Port 80 is exposed via Traefik
+    depends_on:
+      - user-service
+      - auth-service
+      - message-service
     networks:
       - internal
     labels:
