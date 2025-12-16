@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OvO - API Documentation</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1000px;
+            width: 100%;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 40px;
+        }
+
+        .header h1 {
+            font-size: 3rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .header p {
+            font-size: 1.2rem;
+            opacity: 0.9;
+        }
+
+        .services {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .service-card {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            cursor: pointer;
+            text-decoration: none;
+            color: inherit;
+            display: block;
+        }
+
+        .service-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .service-icon {
+            font-size: 3rem;
+            margin-bottom: 15px;
+            display: block;
+        }
+
+        .service-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #2d3748;
+            margin-bottom: 10px;
+        }
+
+        .service-description {
+            color: #718096;
+            font-size: 0.95rem;
+            line-height: 1.5;
+            margin-bottom: 15px;
+        }
+
+        .service-endpoint {
+            background: #f7fafc;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            color: #4a5568;
+            margin-top: 10px;
+            display: inline-block;
+        }
+
+        .footer {
+            text-align: center;
+            color: white;
+            margin-top: 40px;
+            opacity: 0.8;
+        }
+
+        .footer a {
+            color: white;
+            text-decoration: underline;
+        }
+
+        .architecture {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        .architecture h2 {
+            color: #2d3748;
+            margin-bottom: 20px;
+            font-size: 1.8rem;
+        }
+
+        .architecture pre {
+            background: #f7fafc;
+            padding: 20px;
+            border-radius: 8px;
+            overflow-x: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            line-height: 1.6;
+            color: #2d3748;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-top: 10px;
+        }
+
+        .badge-public {
+            background: #48bb78;
+            color: white;
+        }
+
+        .badge-internal {
+            background: #ed8936;
+            color: white;
+        }
+
+        .badge-websocket {
+            background: #4299e1;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔥 OvO API Documentation</h1>
+            <p>Documentation complète des microservices OvO</p>
+        </div>
+
+        <div class="architecture">
+            <h2>📊 Architecture</h2>
+            <pre>
+[Traefik Gateway :80]
+       │
+       ├── /users/*    → [User Service :3001]    → [PostgreSQL]
+       ├── /auth/*     → [Auth Service :3002]    → [Redis]
+       ├── /messages/* → [Message Service :3003] → [MongoDB]
+       └── /*          → [Frontend React]
+
+Communication Pattern:
+- Public requests: Client → Traefik → Service
+- Internal requests: Service → Service (X-Internal-Secret header)
+- Real-time: Client → WebSocket /messages/socket.io → Message Service
+            </pre>
+        </div>
+
+        <div class="services">
+            <a href="http://localhost:3001/api-docs" class="service-card" target="_blank">
+                <span class="service-icon">👤</span>
+                <h2 class="service-title">User Service</h2>
+                <p class="service-description">
+                    Gestion des utilisateurs, profils, statuts et clés de chiffrement E2EE
+                </p>
+                <div>
+                    <span class="badge badge-public">Public API</span>
+                    <span class="badge badge-internal">Internal API</span>
+                </div>
+                <code class="service-endpoint">http://localhost:3001/api-docs</code>
+            </a>
+
+            <a href="http://localhost:3002/api-docs" class="service-card" target="_blank">
+                <span class="service-icon">🔐</span>
+                <h2 class="service-title">Auth Service</h2>
+                <p class="service-description">
+                    Authentification JWT, login, refresh tokens et validation
+                </p>
+                <div>
+                    <span class="badge badge-public">Public API</span>
+                    <span class="badge badge-internal">Internal API</span>
+                </div>
+                <code class="service-endpoint">http://localhost:3002/api-docs</code>
+            </a>
+
+            <a href="http://localhost:3003/api-docs" class="service-card" target="_blank">
+                <span class="service-icon">💬</span>
+                <h2 class="service-title">Message Service</h2>
+                <p class="service-description">
+                    Conversations, messages temps réel, upload de fichiers et WebSocket avec E2EE
+                </p>
+                <div>
+                    <span class="badge badge-public">REST API</span>
+                    <span class="badge badge-websocket">WebSocket</span>
+                </div>
+                <code class="service-endpoint">http://localhost:3003/api-docs</code>
+            </a>
+        </div>
+
+        <div class="architecture">
+            <h2>🚀 Quick Start</h2>
+            <pre>
+# Démarrer tous les services
+docker-compose up -d --build
+
+# Accéder aux documentations
+User Service:    http://localhost:3001/api-docs
+Auth Service:    http://localhost:3002/api-docs
+Message Service: http://localhost:3003/api-docs
+
+# Endpoints principaux (via Traefik)
+POST   /auth/login              - Connexion utilisateur
+POST   /users/register          - Inscription
+GET    /messages/conversations  - Liste des conversations
+POST   /messages/upload         - Upload de fichiers
+
+# WebSocket
+ws://localhost/messages/socket.io - Connexion temps réel
+            </pre>
+        </div>
+
+        <div class="footer">
+            <p>
+                Développé avec ❤️ par l'équipe OvO <br>
+                <a href="https://github.com/anthropics/claude-code" target="_blank">Powered by Claude Code</a>
+            </p>
+        </div>
+    </div>
+</body>
+</html>
