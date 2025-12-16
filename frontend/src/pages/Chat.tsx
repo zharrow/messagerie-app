@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef, useLayoutEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { userApi, messagesApi } from '@/services/api';
 import { sendMessage as socketSendMessage } from '@/services/socket';
+import gsap from 'gsap';
 
 // Hooks
 import { useUserCache } from '@/hooks/useUserCache';
@@ -24,6 +25,9 @@ import ProfileSidebar from '@/components/chat/ProfileSidebar';
 import GroupSettingsModal from '@/components/chat/GroupSettingsModal';
 import { FireAnimation } from '@/components/ui/FireAnimation';
 
+// Types
+import type { Conversation } from '@/types/chat';
+
 const Chat = () => {
   const { user, logout } = useAuth();
   const [showUserList, setShowUserList] = useState(false);
@@ -31,6 +35,15 @@ const Chat = () => {
   const [showProfileSidebar, setShowProfileSidebar] = useState(false);
   const [showGroupSettings, setShowGroupSettings] = useState(false);
   const [showFireAnimation, setShowFireAnimation] = useState(false);
+
+  // Mobile navigation state
+  const [isMobile, setIsMobile] = useState(false);
+  const [showMobileChat, setShowMobileChat] = useState(false);
+
+  // GSAP refs for mobile animations
+  const sidebarRef = useRef<HTMLDivElement>(null);
+  const chatRef = useRef<HTMLDivElement>(null);
+  const profileRef = useRef<HTMLDivElement>(null);
 
   // Custom hooks
   const { users, setUsers, getUserDisplayName, getUserInitials } = useUserCache(user);
@@ -89,6 +102,112 @@ const Chat = () => {
   } = useGifSearch();
 
   const [showGifPicker, setShowGifPicker] = useState(false);
+
+  // Detect mobile screen size
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768); // md breakpoint
+    };
+
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  // GSAP animation for Sidebar (exit left)
+  useLayoutEffect(() => {
+    if (!isMobile || !sidebarRef.current) return;
+
+    if (!showMobileChat && !showProfileSidebar) {
+      // Show sidebar (slower and smoother)
+      gsap.fromTo(
+        sidebarRef.current,
+        { x: '-100%' },
+        {
+          x: 0,
+          duration: 0.6,
+          ease: 'power1.out',
+        }
+      );
+    } else {
+      // Hide sidebar (slide left)
+      gsap.to(sidebarRef.current, {
+        x: '-100%',
+        duration: 0.5,
+        ease: 'power1.in',
+      });
+    }
+  }, [showMobileChat, showProfileSidebar, isMobile]);
+
+  // GSAP animation for Chat (enter/exit right)
+  useLayoutEffect(() => {
+    if (!isMobile || !chatRef.current) return;
+
+    if (showMobileChat && selectedConversation) {
+      // Show chat (slide in from right - very slow and smooth)
+      gsap.fromTo(
+        chatRef.current,
+        { x: '100%' },
+        {
+          x: 0,
+          duration: 0.8,
+          ease: 'power1.inOut',
+        }
+      );
+    } else if (chatRef.current.style.transform !== '') {
+      // Hide chat (slide out to right - faster)
+      gsap.to(chatRef.current, {
+        x: '100%',
+        duration: 0.35,
+        ease: 'power2.in',
+      });
+    }
+  }, [showMobileChat, selectedConversation, isMobile]);
+
+  // GSAP animation for ProfileSidebar (enter/exit right)
+  useLayoutEffect(() => {
+    if (!isMobile || !profileRef.current) return;
+
+    if (showProfileSidebar && selectedConversation) {
+      // Show profile (slide in from right - slower and smoother)
+      gsap.fromTo(
+        profileRef.current,
+        { x: '100%' },
+        {
+          x: 0,
+          duration: 0.6,
+          ease: 'power1.out',
+        }
+      );
+    } else if (profileRef.current.style.transform !== '') {
+      // Hide profile (slide out to right)
+      gsap.to(profileRef.current, {
+        x: '100%',
+        duration: 0.5,
+        ease: 'power1.in',
+      });
+    }
+  }, [showProfileSidebar, selectedConversation, isMobile]);
+
+  // Handle mobile conversation selection
+  const handleMobileSelectConversation = (conversation: Conversation) => {
+    selectConversation(conversation);
+    if (isMobile) {
+      setShowMobileChat(true);
+    }
+  };
+
+  // Handle mobile back navigation (ProfileSidebar → Chat → Sidebar)
+  const handleMobileBack = () => {
+    if (showProfileSidebar) {
+      // If ProfileSidebar is open, close it and return to Chat
+      setShowProfileSidebar(false);
+    } else {
+      // If Chat is open, close it and return to Sidebar
+      setShowMobileChat(false);
+      setShowProfileSidebar(false);
+    }
+  };
 
   // Load users for the modal
   const loadUsers = async () => {
@@ -233,7 +352,7 @@ const Chat = () => {
   };
 
   return (
-    <div className="h-screen flex bg-gray-50">
+    <div className="h-screen flex bg-gray-50 relative overflow-hidden">
       {/* Create Group/Conversation Modal */}
       <CreateGroupModal
         isOpen={showUserList}
@@ -244,73 +363,180 @@ const Chat = () => {
         onCreateGroup={handleCreateGroup}
       />
 
-      {/* Sidebar */}
-      <ConversationSidebar
-        user={user}
-        conversations={conversations}
-        selectedConversation={selectedConversation}
-        typingUsers={typingUsers}
-        onlineUsers={onlineUsers}
-        onLogout={logout}
-        onNewConversation={handleOpenUserList}
-        onSelectConversation={selectConversation}
-        getConversationName={(conv) => getConversationName(conv, getUserDisplayName)}
-        getUserInitials={getUserInitials}
-        getUserDisplayName={getUserDisplayName}
-      />
+      {/* Desktop Layout: Sidebar + Chat */}
+      {!isMobile && (
+        <>
+          {/* Sidebar */}
+          <ConversationSidebar
+            user={user}
+            conversations={conversations}
+            selectedConversation={selectedConversation}
+            typingUsers={typingUsers}
+            onlineUsers={onlineUsers}
+            onLogout={logout}
+            onNewConversation={handleOpenUserList}
+            onSelectConversation={selectConversation}
+            getConversationName={(conv) => getConversationName(conv, getUserDisplayName)}
+            getUserInitials={getUserInitials}
+            getUserDisplayName={getUserDisplayName}
+          />
 
-      {/* Chat area */}
-      <div className="flex-1 flex flex-col">
-        {selectedConversation ? (
-          <>
-            {/* Chat header */}
-            <ChatHeader
-              conversationName={getConversationName(selectedConversation, getUserDisplayName)}
-              typingUsers={typingUsers}
-              conversationId={selectedConversation._id}
-              currentUserId={user?.id}
-              getUserDisplayName={getUserDisplayName}
-              onToggleProfile={() => setShowProfileSidebar(!showProfileSidebar)}
-            />
+          {/* Chat area */}
+          <div className="flex-1 flex flex-col">
+            {selectedConversation ? (
+              <>
+                {/* Chat header */}
+                <ChatHeader
+                  conversationName={getConversationName(selectedConversation, getUserDisplayName)}
+                  typingUsers={typingUsers}
+                  conversationId={selectedConversation._id}
+                  currentUserId={user?.id}
+                  getUserDisplayName={getUserDisplayName}
+                  onToggleProfile={() => setShowProfileSidebar(!showProfileSidebar)}
+                  isMobile={false}
+                  onBack={handleMobileBack}
+                />
 
-            {/* Messages */}
-            <MessageList
-              conversation={selectedConversation}
-              userId={user?.id}
-              editingMessageId={editingMessageId}
-              editContent={editContent}
-              hoveredMessageId={hoveredMessageId}
-              showEmojiPicker={showEmojiPicker}
-              getMessageContent={getMessageContent}
-              decryptMessages={decryptMessages}
-              onHover={setHoveredMessageId}
-              onEdit={handleEditMessage}
-              onDelete={handleDeleteMessage}
-              onSaveEdit={handleSaveEdit}
-              onCancelEdit={handleCancelEdit}
-              onEditContentChange={setEditContent}
-              onReaction={handleReaction}
-              onToggleEmojiPicker={setShowEmojiPicker}
-            />
+                {/* Messages */}
+                <MessageList
+                  conversation={selectedConversation}
+                  userId={user?.id}
+                  editingMessageId={editingMessageId}
+                  editContent={editContent}
+                  hoveredMessageId={hoveredMessageId}
+                  showEmojiPicker={showEmojiPicker}
+                  getMessageContent={getMessageContent}
+                  decryptMessages={decryptMessages}
+                  onHover={setHoveredMessageId}
+                  onEdit={handleEditMessage}
+                  onDelete={handleDeleteMessage}
+                  onSaveEdit={handleSaveEdit}
+                  onCancelEdit={handleCancelEdit}
+                  onEditContentChange={setEditContent}
+                  onReaction={handleReaction}
+                  onToggleEmojiPicker={setShowEmojiPicker}
+                />
 
-            {/* Input */}
-            <MessageInput
-              messageInput={messageInput}
-              onInputChange={handleInputChange}
-              onSendMessage={handleSendMessage}
-              onSendMessageWithFiles={sendMessageWithFiles}
-              onOpenGifPicker={handleOpenGifPicker}
-              onFireCommand={handleFireCommand}
-            />
-          </>
-        ) : (
-          <div className="flex-1 flex items-center justify-center bg-white">
-            <p className="text-gray-500">
-              Sélectionnez une conversation pour commencer
-            </p>
+                {/* Input */}
+                <MessageInput
+                  messageInput={messageInput}
+                  onInputChange={handleInputChange}
+                  onSendMessage={handleSendMessage}
+                  onSendMessageWithFiles={sendMessageWithFiles}
+                  onOpenGifPicker={handleOpenGifPicker}
+                  onFireCommand={handleFireCommand}
+                />
+              </>
+            ) : (
+              <div className="flex-1 flex items-center justify-center bg-white">
+                <p className="text-gray-500">
+                  Sélectionnez une conversation pour commencer
+                </p>
+              </div>
+            )}
           </div>
-        )}
-      </div>
+        </>
+      )}
+
+      {/* Mobile Layout: Sliding Panels (GSAP Animated) */}
+      {isMobile && (
+        <div className="flex-1 relative overflow-hidden">
+          {/* Conversations List (Mobile) */}
+          {!showMobileChat && !showProfileSidebar && (
+            <div
+              ref={sidebarRef}
+              className="absolute inset-0 z-10 bg-white"
+              style={{ transform: 'translateX(-100%)' }}
+            >
+              <ConversationSidebar
+                user={user}
+                conversations={conversations}
+                selectedConversation={selectedConversation}
+                typingUsers={typingUsers}
+                onlineUsers={onlineUsers}
+                onLogout={logout}
+                onNewConversation={handleOpenUserList}
+                onSelectConversation={handleMobileSelectConversation}
+                getConversationName={(conv) => getConversationName(conv, getUserDisplayName)}
+                getUserInitials={getUserInitials}
+                getUserDisplayName={getUserDisplayName}
+              />
+            </div>
+          )}
+
+          {/* Chat View (Mobile) - Slides in from right */}
+          {showMobileChat && selectedConversation && (
+            <div
+              ref={chatRef}
+              className="absolute inset-0 z-20 flex flex-col bg-white"
+              style={{ transform: 'translateX(100%)' }}
+            >
+              {/* Chat header */}
+              <ChatHeader
+                conversationName={getConversationName(selectedConversation, getUserDisplayName)}
+                typingUsers={typingUsers}
+                conversationId={selectedConversation._id}
+                currentUserId={user?.id}
+                getUserDisplayName={getUserDisplayName}
+                onToggleProfile={() => setShowProfileSidebar(!showProfileSidebar)}
+                isMobile={true}
+                onBack={handleMobileBack}
+              />
+
+              {/* Messages */}
+              <MessageList
+                conversation={selectedConversation}
+                userId={user?.id}
+                editingMessageId={editingMessageId}
+                editContent={editContent}
+                hoveredMessageId={hoveredMessageId}
+                showEmojiPicker={showEmojiPicker}
+                getMessageContent={getMessageContent}
+                decryptMessages={decryptMessages}
+                onHover={setHoveredMessageId}
+                onEdit={handleEditMessage}
+                onDelete={handleDeleteMessage}
+                onSaveEdit={handleSaveEdit}
+                onCancelEdit={handleCancelEdit}
+                onEditContentChange={setEditContent}
+                onReaction={handleReaction}
+                onToggleEmojiPicker={setShowEmojiPicker}
+              />
+
+              {/* Input */}
+              <MessageInput
+                messageInput={messageInput}
+                onInputChange={handleInputChange}
+                onSendMessage={handleSendMessage}
+                onSendMessageWithFiles={sendMessageWithFiles}
+                onOpenGifPicker={handleOpenGifPicker}
+                onFireCommand={handleFireCommand}
+              />
+            </div>
+          )}
+
+          {/* Profile Sidebar (Mobile) - Slides in from right */}
+          {showProfileSidebar && selectedConversation && (
+            <div
+              ref={profileRef}
+              className="absolute inset-0 z-30 bg-white"
+              style={{ transform: 'translateX(100%)' }}
+            >
+              <ProfileSidebar
+                isOpen={showProfileSidebar}
+                conversation={selectedConversation}
+                currentUserId={user?.id || 0}
+                onClose={() => setShowProfileSidebar(false)}
+                getUserDisplayName={getUserDisplayName}
+                getUserInitials={getUserInitials}
+                onlineUsers={onlineUsers}
+                onOpenGroupSettings={handleOpenGroupSettings}
+                isMobile={true}
+              />
+            </div>
+          )}
+        </div>
+      )}
 
       {/* GIF Picker Modal */}
       <GifPicker
@@ -331,17 +557,20 @@ const Chat = () => {
         onConfirm={confirmDeleteMessage}
       />
 
-      {/* Profile Sidebar */}
-      <ProfileSidebar
-        isOpen={showProfileSidebar}
-        conversation={selectedConversation}
-        currentUserId={user?.id || 0}
-        onClose={() => setShowProfileSidebar(false)}
-        getUserDisplayName={getUserDisplayName}
-        getUserInitials={getUserInitials}
-        onlineUsers={onlineUsers}
-        onOpenGroupSettings={handleOpenGroupSettings}
-      />
+      {/* Profile Sidebar (Desktop only) */}
+      {!isMobile && (
+        <ProfileSidebar
+          isOpen={showProfileSidebar}
+          conversation={selectedConversation}
+          currentUserId={user?.id || 0}
+          onClose={() => setShowProfileSidebar(false)}
+          getUserDisplayName={getUserDisplayName}
+          getUserInitials={getUserInitials}
+          onlineUsers={onlineUsers}
+          onOpenGroupSettings={handleOpenGroupSettings}
+          isMobile={false}
+        />
+      )}
 
       {/* Group Settings Modal */}
       {selectedConversation?.isGroup && (
