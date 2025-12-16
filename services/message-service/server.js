@@ -5,6 +5,7 @@ const http = require('http');
 const { connectDB } = require('./config/database');
 const publicRoutes = require('./routes/public');
 const { initializeSocket } = require('./services/socketService');
+const { errorHandler, notFoundHandler } = require('../../shared-lib/middlewares/errorHandler');
 
 const app = express();
 const server = http.createServer(app);
@@ -17,6 +18,10 @@ app.use(express.json());
 
 // Routes
 app.use('/messages', publicRoutes);
+
+// Error handling (must be last)
+app.use(notFoundHandler); // 404 handler
+app.use(errorHandler); // Global error handler
 
 // Initialize database and WebSocket, then start server
 connectDB()

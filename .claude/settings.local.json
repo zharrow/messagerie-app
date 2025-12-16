@@ -26,7 +26,8 @@
       "WebSearch",
       "Bash(npm uninstall:*)",
       "Bash(npm run lint:*)",
-      "Bash(mv:*)"
+      "Bash(mv:*)",
+      "Bash(grep:*)"
     ],
     "deny": [],
     "ask": []

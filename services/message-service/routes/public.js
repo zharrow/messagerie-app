@@ -3,6 +3,14 @@ const router = express.Router();
 const messageController = require('../controllers/messageController');
 const { authMiddleware } = require('../middlewares/auth');
 const { upload, getFileUrl, uploadsDir } = require('../services/uploadService');
+const validate = require('../middlewares/validate');
+const {
+  createConversationSchema,
+  sendMessageSchema,
+  addParticipantsSchema,
+  searchMessagesSchema,
+  getMessagesSchema
+} = require('../validators/conversation');
 
 // Health check - no auth required
 router.get('/health', messageController.health);
@@ -37,22 +45,22 @@ router.post('/upload', upload.array('files', 5), (req, res) => {
 
 // Conversations
 router.get('/conversations', messageController.getConversations);
-router.post('/conversations', messageController.createConversation);
+router.post('/conversations', validate(createConversationSchema), messageController.createConversation);
 router.get('/conversations/:id', messageController.getConversation);
 router.delete('/conversations/:id', messageController.deleteConversation);
 
 // Search in conversations
-router.get('/search', messageController.searchMessages);
+router.get('/search', validate(searchMessagesSchema, 'query'), messageController.searchMessages);
 
 // Messages
-router.post('/conversations/:id/messages', messageController.sendMessage);
+router.post('/conversations/:id/messages', validate(sendMessageSchema), messageController.sendMessage);
 router.put('/conversations/:id/read', messageController.markAsRead);
 
 // Pagination - get older messages
-router.get('/conversations/:id/messages', messageController.getMessages);
+router.get('/conversations/:id/messages', validate(getMessagesSchema, 'query'), messageController.getMessages);
 
 // Group management
-router.post('/conversations/:id/participants', messageController.addParticipant);
+router.post('/conversations/:id/participants', validate(addParticipantsSchema), messageController.addParticipant);
 router.delete('/conversations/:id/participants/:participantId', messageController.removeParticipant);
 
 module.exports = router;
