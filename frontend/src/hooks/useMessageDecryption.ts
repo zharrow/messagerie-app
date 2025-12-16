@@ -7,7 +7,7 @@ interface DecryptedMessageCache {
 }
 
 interface SenderPublicKeyCache {
-  [userId: number]: string;
+  [key: string]: string;
 }
 
 /**
@@ -19,30 +19,52 @@ export const useMessageDecryption = (userId: number | undefined) => {
   const [senderKeys, setSenderKeys] = useState<SenderPublicKeyCache>({});
 
   /**
-   * Récupérer la clé publique d'un expéditeur
+   * Récupérer la clé publique d'un expéditeur spécifique (par deviceId)
    */
-  const getSenderPublicKey = async (senderId: number): Promise<string | null> => {
+  const getSenderPublicKey = async (senderId: number, senderDeviceId?: string): Promise<string | null> => {
+    // Créer une clé de cache unique par userId:deviceId
+    const cacheKey = senderDeviceId ? `${senderId}:${senderDeviceId}` : `${senderId}`;
+
     // Vérifier le cache
-    if (senderKeys[senderId]) {
-      console.log(`[E2EE] Clé publique trouvée en cache pour user ${senderId}`);
-      return senderKeys[senderId];
+    if (senderKeys[cacheKey]) {
+      console.log(`[E2EE] Clé publique trouvée en cache pour ${cacheKey}`);
+      return senderKeys[cacheKey];
     }
 
     try {
-      console.log(`[E2EE] Récupération de la clé publique pour user ${senderId}`);
+      console.log(`[E2EE] Récupération de la clé publique pour user ${senderId}, device: ${senderDeviceId || 'any'}`);
       const response = await userApi.getUserPublicKeys(senderId);
       console.log(`[E2EE] Response:`, response);
       const { keys } = response;
+
       if (keys && keys.length > 0) {
-        const publicKey = keys[0].public_key;
-        console.log(`[E2EE] Clé publique trouvée:`, publicKey.substring(0, 10) + '...');
-        setSenderKeys(prev => ({ ...prev, [senderId]: publicKey }));
-        return publicKey;
+        let publicKey: string | null = null;
+
+        // Si on a un senderDeviceId, chercher la clé correspondante
+        if (senderDeviceId) {
+          const matchingKey = keys.find((k: any) => k.device_id === senderDeviceId);
+          if (matchingKey) {
+            publicKey = matchingKey.public_key;
+            console.log(`[E2EE] ✓ Clé publique trouvée pour device ${senderDeviceId}:`, publicKey?.substring(0, 10) + '...');
+          } else {
+            console.warn(`[E2EE] ⚠️ Aucune clé trouvée pour device ${senderDeviceId}, utilisation de la première clé disponible`);
+            publicKey = keys[0].public_key || null;
+          }
+        } else {
+          // Pas de deviceId spécifié, prendre la première clé
+          publicKey = keys[0].public_key || null;
+          console.log(`[E2EE] Clé publique (première) trouvée:`, publicKey?.substring(0, 10) + '...');
+        }
+
+        if (publicKey) {
+          setSenderKeys((prev: SenderPublicKeyCache) => ({ ...prev, [cacheKey]: publicKey }));
+          return publicKey;
+        }
       } else {
-        console.error(`[E2EE] Aucune clé trouvée pour user ${senderId}. Keys:`, keys);
+        console.error(`[E2EE] ✗ Aucune clé trouvée pour user ${senderId}. Keys:`, keys);
       }
     } catch (error) {
-      console.error(`[E2EE] Erreur lors de la récupération de la clé publique pour l'utilisateur ${senderId}:`, error);
+      console.error(`[E2EE] ✗ Erreur lors de la récupération de la clé publique pour l'utilisateur ${senderId}:`, error);
     }
 
     return null;
@@ -65,14 +87,17 @@ export const useMessageDecryption = (userId: number | undefined) => {
       // Récupérer les clés de l'utilisateur actuel
       const keyPair = encryptionService.loadKeyPair();
       if (!keyPair) {
-        console.error('Clés de déchiffrement non disponibles');
+        console.error('[E2EE] Clés de déchiffrement non disponibles');
         return '[Message chiffré - Clés manquantes]';
       }
 
-      // Récupérer la clé publique de l'expéditeur
-      const senderPublicKey = await getSenderPublicKey(message.from);
+      // Récupérer la clé publique de l'expéditeur en utilisant son deviceId
+      const senderDeviceId = message.senderDeviceId;
+      console.log(`[E2EE] Déchiffrement message de user ${message.from}, device: ${senderDeviceId}`);
+
+      const senderPublicKey = await getSenderPublicKey(message.from, senderDeviceId);
       if (!senderPublicKey) {
-        console.error('Clé publique de l\'expéditeur introuvable');
+        console.error('[E2EE] Clé publique de l\'expéditeur introuvable');
         return '[Message chiffré - Clé expéditeur manquante]';
       }
 
@@ -87,17 +112,17 @@ export const useMessageDecryption = (userId: number | undefined) => {
 
       if (decryptedContent) {
         // Mettre en cache
-        setDecryptedMessages(prev => ({
+        setDecryptedMessages((prev: DecryptedMessageCache) => ({
           ...prev,
           [message._id]: decryptedContent
         }));
         return decryptedContent;
       } else {
-        console.error('Échec du déchiffrement');
+        console.error('[E2EE] Échec du déchiffrement');
         return '[Message chiffré - Échec du déchiffrement]';
       }
     } catch (error) {
-      console.error('Erreur lors du déchiffrement:', error);
+      console.error('[E2EE] Erreur lors du déchiffrement:', error);
       return '[Message chiffré - Erreur]';
     }
   };
@@ -140,14 +165,14 @@ export const useMessageDecryption = (userId: number | undefined) => {
       } else if (!content) {
         // Si le déchiffrement échoue, mettre un message d'erreur en cache
         console.error(`[E2EE] Échec du déchiffrement pour ${message._id}`);
-        setDecryptedMessages(prev => ({
+        setDecryptedMessages((prev: DecryptedMessageCache) => ({
           ...prev,
           [message._id]: '[Message chiffré - Impossible à déchiffrer]'
         }));
       }
     }).catch(err => {
       console.error('[E2EE] Erreur lors du déchiffrement automatique:', err);
-      setDecryptedMessages(prev => ({
+      setDecryptedMessages((prev: DecryptedMessageCache) => ({
         ...prev,
         [message._id]: '[Message chiffré - Erreur technique]'
       }));
@@ -169,7 +194,7 @@ export const useMessageDecryption = (userId: number | undefined) => {
    * Utile lors de l'édition d'un message
    */
   const invalidateMessageCache = (messageId: string) => {
-    setDecryptedMessages(prev => {
+    setDecryptedMessages((prev: DecryptedMessageCache) => {
       const newCache = { ...prev };
       delete newCache[messageId];
       return newCache;
