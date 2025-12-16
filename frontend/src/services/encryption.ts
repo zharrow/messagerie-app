@@ -110,15 +110,33 @@ class EncryptionService {
    * @returns {KeyPair | null} - Loaded key pair or null
    */
   loadKeyPair(): KeyPair | null {
+    console.log('[E2EE] Loading key pair from localStorage...');
+    const isSafari = navigator.userAgent.includes('Safari') && !navigator.userAgent.includes('Chrome');
+    console.log('[E2EE] Browser:', isSafari ? 'Safari' : 'Other');
+
     const privateKey = localStorage.getItem(STORAGE_KEYS.PRIVATE_KEY);
     const publicKey = localStorage.getItem(STORAGE_KEYS.PUBLIC_KEY);
     const deviceId = localStorage.getItem(STORAGE_KEYS.DEVICE_ID);
     const fingerprint = localStorage.getItem(STORAGE_KEYS.KEY_FINGERPRINT);
 
+    console.log('[E2EE] Keys loaded from localStorage:', {
+      hasPrivateKey: !!privateKey,
+      hasPublicKey: !!publicKey,
+      hasDeviceId: !!deviceId,
+      hasFingerprint: !!fingerprint,
+      privateKeyLength: privateKey?.length || 0,
+      publicKeyLength: publicKey?.length || 0,
+      deviceIdLength: deviceId?.length || 0,
+      privateKeyPreview: privateKey?.substring(0, 10) + '...',
+      publicKeyPreview: publicKey?.substring(0, 10) + '...'
+    });
+
     if (!privateKey || !publicKey || !deviceId || !fingerprint) {
+      console.error('[E2EE] Missing keys in localStorage!');
       return null;
     }
 
+    console.log('[E2EE] ✓ Key pair loaded successfully');
     return { privateKey, publicKey, deviceId, fingerprint };
   }
 
@@ -211,7 +229,17 @@ class EncryptionService {
         currentDeviceId,
         availablePayloads: encryptedPayloads ? Object.keys(encryptedPayloads) : 'none',
         hasNonce: !!nonce,
-        senderDeviceId
+        senderDeviceId,
+        browser: navigator.userAgent.includes('Safari') && !navigator.userAgent.includes('Chrome') ? 'Safari' : 'Other'
+      });
+
+      // Safari Debug: Log key lengths
+      console.log('[DECRYPT] Key details:', {
+        privateKeyLength: privateKey?.length,
+        senderPublicKeyLength: senderPublicKey?.length,
+        nonceLength: nonce?.length,
+        privateKeyPreview: privateKey?.substring(0, 10) + '...',
+        senderPublicKeyPreview: senderPublicKey?.substring(0, 10) + '...'
       });
 
       // Find the payload for this device
@@ -236,11 +264,53 @@ class EncryptionService {
         }
       }
 
-      // Decode everything
-      const nonceBytes = naclUtil.decodeBase64(nonce);
-      const encryptedBytes = naclUtil.decodeBase64(encryptedPayload);
-      const secretKey = naclUtil.decodeBase64(privateKey);
-      const publicKey = naclUtil.decodeBase64(senderPublicKey);
+      console.log('[DECRYPT] Payload details:', {
+        payloadLength: encryptedPayload?.length,
+        payloadPreview: encryptedPayload?.substring(0, 20) + '...'
+      });
+
+      // Decode everything with error handling
+      let nonceBytes, encryptedBytes, secretKey, publicKey;
+
+      try {
+        nonceBytes = naclUtil.decodeBase64(nonce);
+        console.log('[DECRYPT] Nonce decoded:', nonceBytes?.length, 'bytes');
+      } catch (error) {
+        console.error('[DECRYPT] Failed to decode nonce:', error);
+        throw new Error('Failed to decode nonce');
+      }
+
+      try {
+        encryptedBytes = naclUtil.decodeBase64(encryptedPayload);
+        console.log('[DECRYPT] Encrypted payload decoded:', encryptedBytes?.length, 'bytes');
+      } catch (error) {
+        console.error('[DECRYPT] Failed to decode encrypted payload:', error);
+        throw new Error('Failed to decode encrypted payload');
+      }
+
+      try {
+        secretKey = naclUtil.decodeBase64(privateKey);
+        console.log('[DECRYPT] Private key decoded:', secretKey?.length, 'bytes (expected 32)');
+        if (secretKey.length !== 32) {
+          throw new Error(`Invalid private key length: ${secretKey.length} (expected 32)`);
+        }
+      } catch (error) {
+        console.error('[DECRYPT] Failed to decode private key:', error);
+        throw new Error('Failed to decode private key');
+      }
+
+      try {
+        publicKey = naclUtil.decodeBase64(senderPublicKey);
+        console.log('[DECRYPT] Sender public key decoded:', publicKey?.length, 'bytes (expected 32)');
+        if (publicKey.length !== 32) {
+          throw new Error(`Invalid public key length: ${publicKey.length} (expected 32)`);
+        }
+      } catch (error) {
+        console.error('[DECRYPT] Failed to decode sender public key:', error);
+        throw new Error('Failed to decode sender public key');
+      }
+
+      console.log('[DECRYPT] All keys decoded successfully, attempting decryption...');
 
       // Decrypt using NaCl box
       const decrypted = nacl.box.open(
@@ -251,13 +321,28 @@ class EncryptionService {
       );
 
       if (!decrypted) {
-        console.error('Decryption failed - authentication failed');
+        console.error('[DECRYPT] Decryption failed - authentication failed or incorrect keys');
+        console.error('[DECRYPT] This could mean:', [
+          '1. The sender public key does not match the encryption key',
+          '2. The private key is incorrect',
+          '3. The message was tampered with',
+          '4. Keys were corrupted during storage/retrieval (Safari localStorage issue)'
+        ]);
         return null;
       }
 
-      return naclUtil.encodeUTF8(decrypted);
+      console.log('[DECRYPT] ✓ Decryption successful!', decrypted.length, 'bytes');
+      const decodedText = naclUtil.encodeUTF8(decrypted);
+      console.log('[DECRYPT] ✓ Text decoded:', decodedText.substring(0, 50) + '...');
+      return decodedText;
     } catch (error) {
-      console.error('Error decrypting message:', error);
+      console.error('[DECRYPT] ✗ Error decrypting message:', error);
+      if (error instanceof Error) {
+        console.error('[DECRYPT] Error details:', {
+          message: error.message,
+          stack: error.stack
+        });
+      }
       return null;
     }
   }
