@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import AvatarStatus from '@/components/ui/AvatarStatus';
-import { X, Users, Image, FileText, Settings, UserPlus, UserMinus } from 'lucide-react';
+import { X, Users, Image, FileText, Settings, UserPlus, UserMinus, ArrowLeft } from 'lucide-react';
 import type { Conversation, User as ChatUser } from '@/types/chat';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost';
@@ -15,6 +15,7 @@ interface ProfileSidebarProps {
   getUserInitials: (userId: number) => string;
   onlineUsers: Set<number>;
   onOpenGroupSettings?: () => void;
+  isMobile?: boolean;
 }
 
 type TabType = 'info' | 'media' | 'files';
@@ -28,6 +29,7 @@ const ProfileSidebar = ({
   getUserInitials,
   onlineUsers,
   onOpenGroupSettings,
+  isMobile = false,
 }: ProfileSidebarProps) => {
   const [activeTab, setActiveTab] = useState<TabType>('info');
 
@@ -245,13 +247,20 @@ const ProfileSidebar = ({
   );
 
   return (
-    <div className="w-80 border-l flex flex-col bg-white">
+    <div className={`${isMobile ? 'w-full' : 'w-80'} border-l flex flex-col bg-white h-full`}>
       {/* Header */}
       <div className="px-4 py-3 border-b flex items-center justify-between">
+        {isMobile && (
+          <Button variant="ghost" size="icon" onClick={onClose} className="h-9 w-9 rounded-full hover:bg-gray-100 mr-2">
+            <ArrowLeft className="h-5 w-5 text-primary-600" />
+          </Button>
+        )}
         <h2 className="font-semibold text-gray-900">Informations</h2>
-        <Button variant="ghost" size="icon" onClick={onClose} className="h-9 w-9 rounded-full hover:bg-gray-100">
-          <X className="h-5 w-5 text-gray-600" />
-        </Button>
+        {!isMobile && (
+          <Button variant="ghost" size="icon" onClick={onClose} className="h-9 w-9 rounded-full hover:bg-gray-100">
+            <X className="h-5 w-5 text-gray-600" />
+          </Button>
+        )}
       </div>
 
       {/* Tabs */}

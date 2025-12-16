@@ -58,7 +58,7 @@ const ConversationSidebar = ({
   );
 
   return (
-    <div className="w-[360px] border-r flex flex-col bg-white">
+    <div className="w-full md:w-[360px] border-r flex flex-col bg-white h-full">
       {/* Header with user info */}
       <div className="px-4 py-3 border-b">
         <div className="flex items-center justify-between mb-4">

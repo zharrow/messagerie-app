@@ -1,7 +1,7 @@
 import { Button } from '@/components/ui/button';
 import ShinyText from '@/components/ui/ShinyText';
 import { EncryptionBadge } from '@/components/EncryptionBadge';
-import { Phone, Video, Info } from 'lucide-react';
+import { Phone, Video, Info, ArrowLeft } from 'lucide-react';
 
 interface ChatHeaderProps {
   conversationName: string;
@@ -10,6 +10,8 @@ interface ChatHeaderProps {
   currentUserId?: number;
   getUserDisplayName: (userId: number) => string;
   onToggleProfile?: () => void;
+  isMobile?: boolean;
+  onBack?: () => void;
 }
 
 const ChatHeader = ({
@@ -19,6 +21,8 @@ const ChatHeader = ({
   currentUserId,
   getUserDisplayName,
   onToggleProfile,
+  isMobile = false,
+  onBack,
 }: ChatHeaderProps) => {
   const getTypingIndicator = () => {
     const typing = typingUsers.get(conversationId);
@@ -40,6 +44,18 @@ const ChatHeader = ({
   return (
     <div className="px-5 py-3 border-b bg-white shadow-sm">
       <div className="flex items-center justify-between">
+        {/* Back button for mobile */}
+        {isMobile && onBack && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onBack}
+            className="h-10 w-10 rounded-full hover:bg-gray-100 mr-2"
+          >
+            <ArrowLeft className="h-5 w-5 text-primary-600" />
+          </Button>
+        )}
+
         <div className="flex-1 min-w-0">
           <h2 className="font-semibold text-lg truncate">{conversationName}</h2>
           {getTypingIndicator()}
