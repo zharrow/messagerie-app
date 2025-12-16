@@ -52,3 +52,5 @@ Thumbs.db
 
 # Claude settings (optionnel, à commenter si vous voulez les partager)
 .claude/settings.local.json
+
+maquette
