@@ -1,30 +1,20 @@
-const express = require('express');
-const cors = require('cors');
-const morgan = require('morgan');
+const { utils } = require('./shared-lib');
+const { createApp, startServer } = utils.serverFactory;
 const { initRedis } = require('./config/redis');
 const publicRoutes = require('./routes/public');
 const internalRoutes = require('./routes/internal');
 
-const app = express();
+const { app, server } = createApp();
 const PORT = process.env.PORT || 3002;
-
-// Middlewares
-app.use(morgan('combined')); // HTTP request logger
-app.use(cors());
-app.use(express.json());
 
 // Routes
 app.use('/auth', publicRoutes);
 app.use('/internal', internalRoutes);
 
-// Initialize Redis and start server
-initRedis()
-  .then(() => {
-    app.listen(PORT, () => {
-      console.log(`Auth Service running on port ${PORT}`);
-    });
-  })
-  .catch((err) => {
-    console.error('Failed to initialize Redis:', err);
-    process.exit(1);
-  });
+// Initialize and start
+startServer({
+  server,
+  port: PORT,
+  serviceName: 'Auth Service',
+  initFn: initRedis
+});

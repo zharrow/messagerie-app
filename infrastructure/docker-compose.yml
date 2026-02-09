@@ -28,8 +28,8 @@ services:
   # ===================
   user-service:
     build:
-      context: ../services/user-service
-      dockerfile: Dockerfile
+      context: ../services
+      dockerfile: user-service/Dockerfile
     container_name: user-service
     restart: unless-stopped
     ports:
@@ -62,8 +62,8 @@ services:
   # ===================
   auth-service:
     build:
-      context: ../services/auth-service
-      dockerfile: Dockerfile
+      context: ../services
+      dockerfile: auth-service/Dockerfile
     container_name: auth-service
     restart: unless-stopped
     ports:
@@ -96,8 +96,8 @@ services:
   # ===================
   message-service:
     build:
-      context: ../services/message-service
-      dockerfile: Dockerfile
+      context: ../services
+      dockerfile: message-service/Dockerfile
     container_name: message-service
     restart: unless-stopped
     ports:

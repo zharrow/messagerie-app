@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
 import { authApi, userApi } from '@/services/api';
 import { connectSocket, disconnectSocket } from '@/services/socket';
-import { encryptionService } from '@/services/encryption';
+import { encryptionService, initializeE2EE, setCurrentUserId } from '@/services/encryption';
 
 interface User {
   id: number;
@@ -34,8 +34,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const token = localStorage.getItem('access_token');
 
     if (storedUser && token) {
-      setUser(JSON.parse(storedUser));
+      const userData = JSON.parse(storedUser);
+      setUser(userData);
       connectSocket(token);
+
+      // IMPORTANT: Set user ID before loading keys to use user-specific storage
+      setCurrentUserId(userData.id);
 
       // Check if encryption keys exist
       const keyPair = encryptionService.loadKeyPair();
@@ -50,32 +54,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       throw new Error('User not authenticated');
     }
 
-    try {
-      // Check if keys already exist
-      const existingKeys = encryptionService.loadKeyPair();
-      if (existingKeys) {
-        setIsEncryptionEnabled(true);
-        return;
-      }
+    // Ensure user ID is set before initializing
+    setCurrentUserId(user.id);
 
-      // Generate new key pair
-      const keyPair = encryptionService.generateKeyPair();
-
-      // Upload public key to server
-      await userApi.uploadPublicKey({
-        device_id: keyPair.deviceId,
-        public_key: keyPair.publicKey,
-        key_fingerprint: keyPair.fingerprint,
-      });
-
-      // Save to localStorage
-      encryptionService.saveKeyPair(keyPair);
-      setIsEncryptionEnabled(true);
-
-      console.log('E2EE encryption initialized');
-    } catch (error) {
-      console.error('Failed to initialize encryption:', error);
-      throw error;
+    const result = await initializeE2EE(userApi.uploadPublicKey);
+    setIsEncryptionEnabled(result.isEnabled);
+    if (!result.isEnabled) {
+      throw new Error('Failed to initialize encryption');
     }
   };
 
@@ -91,23 +76,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setUser(userData);
     connectSocket(access_token);
 
+    // IMPORTANT: Set user ID before initializing encryption
+    setCurrentUserId(userData.id);
+
     // Auto-initialize encryption on login
     try {
-      const keyPair = encryptionService.loadKeyPair();
-      if (!keyPair) {
-        // Generate keys automatically for new users
-        const newKeyPair = encryptionService.generateKeyPair();
-        await userApi.uploadPublicKey({
-          device_id: newKeyPair.deviceId,
-          public_key: newKeyPair.publicKey,
-          key_fingerprint: newKeyPair.fingerprint,
-        });
-        encryptionService.saveKeyPair(newKeyPair);
-        setIsEncryptionEnabled(true);
-        console.log('E2EE encryption initialized automatically');
-      } else {
-        setIsEncryptionEnabled(true);
-      }
+      const result = await initializeE2EE(userApi.uploadPublicKey);
+      setIsEncryptionEnabled(result.isEnabled);
     } catch (error) {
       console.error('Failed to initialize encryption on login:', error);
       // Non-blocking - user can still chat without encryption
@@ -130,6 +105,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       // E2EE keys are device-specific and must persist to decrypt old messages
       // Only clear them when explicitly requested by user (device removal)
       setIsEncryptionEnabled(false);
+
+      // Clear current user ID to prevent key confusion on next login
+      setCurrentUserId(undefined);
     }
   };
 

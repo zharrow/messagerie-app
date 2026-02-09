@@ -10,11 +10,35 @@ import naclUtil from 'tweetnacl-util';
  * - Public keys: Stored on server for other users to fetch
  */
 
-const STORAGE_KEYS = {
-  PRIVATE_KEY: 'e2ee_private_key',
-  PUBLIC_KEY: 'e2ee_public_key',
-  DEVICE_ID: 'e2ee_device_id',
-  KEY_FINGERPRINT: 'e2ee_key_fingerprint',
+// Current user ID for user-specific storage
+let currentUserId: number | undefined;
+
+/**
+ * Set the current user ID for storage operations
+ * MUST be called before any key operations
+ */
+export const setCurrentUserId = (userId: number | undefined) => {
+  console.log('[E2EE] Setting current user ID:', userId);
+  currentUserId = userId;
+};
+
+export const getCurrentUserId = () => currentUserId;
+
+/**
+ * Get user-specific storage keys
+ * Keys are namespaced by user ID to prevent cross-user key confusion
+ */
+const getStorageKeys = () => {
+  if (!currentUserId) {
+    console.warn('[E2EE] No user ID set, using legacy storage keys');
+  }
+  const suffix = currentUserId ? `_${currentUserId}` : '';
+  return {
+    PRIVATE_KEY: `e2ee_private_key${suffix}`,
+    PUBLIC_KEY: `e2ee_public_key${suffix}`,
+    DEVICE_ID: `e2ee_device_id${suffix}`,
+    KEY_FINGERPRINT: `e2ee_key_fingerprint${suffix}`,
+  };
 };
 
 export interface KeyPair {
@@ -99,6 +123,8 @@ class EncryptionService {
    * @param {KeyPair} keyPair - Key pair to save
    */
   saveKeyPair(keyPair: KeyPair): void {
+    const STORAGE_KEYS = getStorageKeys();
+    console.log('[E2EE] Saving key pair for user:', currentUserId);
     localStorage.setItem(STORAGE_KEYS.PRIVATE_KEY, keyPair.privateKey);
     localStorage.setItem(STORAGE_KEYS.PUBLIC_KEY, keyPair.publicKey);
     localStorage.setItem(STORAGE_KEYS.DEVICE_ID, keyPair.deviceId);
@@ -110,7 +136,8 @@ class EncryptionService {
    * @returns {KeyPair | null} - Loaded key pair or null
    */
   loadKeyPair(): KeyPair | null {
-    console.log('[E2EE] Loading key pair from localStorage...');
+    const STORAGE_KEYS = getStorageKeys();
+    console.log('[E2EE] Loading key pair from localStorage for user:', currentUserId);
     const isSafari = navigator.userAgent.includes('Safari') && !navigator.userAgent.includes('Chrome');
     console.log('[E2EE] Browser:', isSafari ? 'Safari' : 'Other');
 
@@ -120,6 +147,7 @@ class EncryptionService {
     const fingerprint = localStorage.getItem(STORAGE_KEYS.KEY_FINGERPRINT);
 
     console.log('[E2EE] Keys loaded from localStorage:', {
+      storageKeys: STORAGE_KEYS,
       hasPrivateKey: !!privateKey,
       hasPublicKey: !!publicKey,
       hasDeviceId: !!deviceId,
@@ -141,9 +169,11 @@ class EncryptionService {
   }
 
   /**
-   * Clear all keys from localStorage
+   * Clear all keys from localStorage for current user
    */
   clearKeys(): void {
+    const STORAGE_KEYS = getStorageKeys();
+    console.log('[E2EE] Clearing keys for user:', currentUserId);
     localStorage.removeItem(STORAGE_KEYS.PRIVATE_KEY);
     localStorage.removeItem(STORAGE_KEYS.PUBLIC_KEY);
     localStorage.removeItem(STORAGE_KEYS.DEVICE_ID);
@@ -420,6 +450,144 @@ class EncryptionService {
       console.error('Error decrypting file:', error);
       return null;
     }
+  }
+}
+
+/**
+ * Migrate legacy keys (without user ID suffix) to user-specific keys
+ * This handles users who had keys before the user-specific storage was added
+ */
+function migrateLegacyKeys(): KeyPair | null {
+  if (!currentUserId) return null;
+
+  // Check for legacy keys (without user ID suffix)
+  const legacyPrivateKey = localStorage.getItem('e2ee_private_key');
+  const legacyPublicKey = localStorage.getItem('e2ee_public_key');
+  const legacyDeviceId = localStorage.getItem('e2ee_device_id');
+  const legacyFingerprint = localStorage.getItem('e2ee_key_fingerprint');
+
+  if (legacyPrivateKey && legacyPublicKey && legacyDeviceId && legacyFingerprint) {
+    console.log('[E2EE] Found legacy keys, migrating to user-specific storage...');
+
+    const keyPair: KeyPair = {
+      privateKey: legacyPrivateKey,
+      publicKey: legacyPublicKey,
+      deviceId: legacyDeviceId,
+      fingerprint: legacyFingerprint,
+    };
+
+    // Save to new user-specific storage
+    encryptionService.saveKeyPair(keyPair);
+
+    // Remove legacy keys to prevent confusion
+    localStorage.removeItem('e2ee_private_key');
+    localStorage.removeItem('e2ee_public_key');
+    localStorage.removeItem('e2ee_device_id');
+    localStorage.removeItem('e2ee_key_fingerprint');
+
+    console.log('[E2EE] ✓ Legacy keys migrated successfully');
+    return keyPair;
+  }
+
+  return null;
+}
+
+/**
+ * Initialize E2EE encryption for a user
+ * Loads existing keys or generates new ones
+ * @param uploadPublicKey - API function to upload public key to server
+ * @returns Object with keyPair and isEnabled status
+ */
+export async function initializeE2EE(
+  uploadPublicKey: (data: { device_id: string; public_key: string; key_fingerprint: string }) => Promise<any>
+): Promise<{ keyPair: KeyPair | null; isEnabled: boolean }> {
+  try {
+    // Try to load existing user-specific keys
+    let existingKeyPair = encryptionService.loadKeyPair();
+
+    // If no user-specific keys, try to migrate legacy keys
+    if (!existingKeyPair) {
+      existingKeyPair = migrateLegacyKeys();
+    }
+
+    if (existingKeyPair) {
+      console.log('[E2EE] Existing keys loaded');
+      return { keyPair: existingKeyPair, isEnabled: true };
+    }
+
+    // Generate new keys
+    const newKeyPair = encryptionService.generateKeyPair();
+    await uploadPublicKey({
+      device_id: newKeyPair.deviceId,
+      public_key: newKeyPair.publicKey,
+      key_fingerprint: newKeyPair.fingerprint,
+    });
+
+    // Save to localStorage
+    encryptionService.saveKeyPair(newKeyPair);
+    console.log('[E2EE] New keys generated and uploaded');
+    return { keyPair: newKeyPair, isEnabled: true };
+  } catch (error) {
+    console.error('[E2EE] Failed to initialize:', error);
+    return { keyPair: null, isEnabled: false };
+  }
+}
+
+/**
+ * Encrypt a message for a conversation
+ * Simplified helper for common encryption flow
+ * @param content - Message content to encrypt
+ * @param participantIds - Array of participant user IDs
+ * @param getBulkPublicKeys - API function to fetch public keys
+ * @returns Encrypted message object or null if encryption fails
+ */
+export async function encryptForConversation(
+  content: string,
+  participantIds: number[],
+  getBulkPublicKeys: (ids: number[]) => Promise<{ keys: Record<string, Array<{ device_id: string; public_key: string }>> }>
+): Promise<EncryptedMessage | null> {
+  const keyPair = encryptionService.loadKeyPair();
+  if (!keyPair) {
+    console.error('[E2EE] Clés de chiffrement non disponibles');
+    return null;
+  }
+
+  if (participantIds.length === 0) {
+    console.error('[E2EE] Aucun participant trouvé');
+    return null;
+  }
+
+  try {
+    const { keys: recipientKeys } = await getBulkPublicKeys(participantIds);
+    console.log('[E2EE] Chiffrement pour les participants:', participantIds);
+    console.log('[E2EE] Clés récupérées:', Object.keys(recipientKeys));
+
+    // Vérifier que tous les participants ont des clés
+    const missingKeys = participantIds.filter(id => !recipientKeys[id] || recipientKeys[id].length === 0);
+    if (missingKeys.length > 0) {
+      console.warn('[E2EE] ⚠️ Participants sans clés publiques:', missingKeys);
+    }
+
+    // Log détaillé des clés
+    Object.entries(recipientKeys).forEach(([userId, devices]) => {
+      console.log(`[E2EE] User ${userId}: ${(devices as any[]).length} appareil(s)`);
+      (devices as any[]).forEach((d: any) => {
+        console.log(`  - Device: ${d.device_id}, Key: ${d.public_key?.substring(0, 10)}...`);
+      });
+    });
+
+    const encrypted = encryptionService.encryptMessage(
+      content.trim(),
+      recipientKeys,
+      keyPair.privateKey,
+      keyPair.deviceId
+    );
+
+    console.log('[E2EE] Message chiffré pour les devices:', Object.keys(encrypted.encryptedPayloads));
+    return encrypted;
+  } catch (error) {
+    console.error('[E2EE] Erreur lors du chiffrement:', error);
+    return null;
   }
 }
 

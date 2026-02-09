@@ -1,5 +1,7 @@
 const User = require('../models/User');
-const { validateEmail, validatePassword } = require('../utils/validation');
+const { utils, validators } = require('../shared-lib');
+const { error: errorResponse, notFound, unauthorized } = utils.response;
+const { isValidEmail, isValidPassword } = validators.email;
 
 const userController = {
   // POST /users/register
@@ -9,23 +11,21 @@ const userController = {
 
       // Validation
       if (!email || !password) {
-        return res.status(400).json({ error: 'Email and password are required' });
+        return errorResponse(res, 'Email and password are required', 400);
       }
 
-      if (!validateEmail(email)) {
-        return res.status(400).json({ error: 'Invalid email format' });
+      if (!isValidEmail(email)) {
+        return errorResponse(res, 'Invalid email format', 400);
       }
 
-      if (!validatePassword(password)) {
-        return res.status(400).json({
-          error: 'Password must be at least 8 characters with uppercase, lowercase, and number'
-        });
+      if (!isValidPassword(password)) {
+        return errorResponse(res, 'Password must be at least 8 characters with uppercase, lowercase, and number', 400);
       }
 
       // Check if user exists
       const existingUser = await User.findByEmail(email);
       if (existingUser) {
-        return res.status(409).json({ error: 'Email already registered' });
+        return errorResponse(res, 'Email already registered', 409);
       }
 
       // Create user
@@ -34,7 +34,7 @@ const userController = {
       res.status(201).json(user);
     } catch (error) {
       console.error('Register error:', error);
-      res.status(500).json({ error: 'Internal server error' });
+      errorResponse(res, 'Internal server error');
     }
   },
 
@@ -45,13 +45,13 @@ const userController = {
 
       const user = await User.findById(id);
       if (!user) {
-        return res.status(404).json({ error: 'User not found' });
+        return notFound(res, 'User');
       }
 
       res.json(user);
     } catch (error) {
       console.error('Get user error:', error);
-      res.status(500).json({ error: 'Internal server error' });
+      errorResponse(res, 'Internal server error');
     }
   },
 
@@ -63,28 +63,19 @@ const userController = {
 
       // Verify user is updating their own profile
       if (req.user && req.user.id !== parseInt(id)) {
-        return res.status(403).json({ error: 'Not authorized to update this profile' });
+        return errorResponse(res, 'Not authorized to update this profile', 403);
       }
 
       const user = await User.update(id, { first_name, last_name });
       if (!user) {
-        return res.status(404).json({ error: 'User not found' });
+        return notFound(res, 'User');
       }
 
       res.json(user);
     } catch (error) {
       console.error('Update user error:', error);
-      res.status(500).json({ error: 'Internal server error' });
+      errorResponse(res, 'Internal server error');
     }
-  },
-
-  // GET /users/health
-  health(req, res) {
-    res.json({
-      status: 'healthy',
-      service: 'user-service',
-      timestamp: new Date().toISOString()
-    });
   },
 
   // GET /users/:id/profile - Get user profile
@@ -94,13 +85,13 @@ const userController = {
 
       const user = await User.getProfile(id);
       if (!user) {
-        return res.status(404).json({ error: 'User not found' });
+        return notFound(res, 'User');
       }
 
       res.json(user);
     } catch (error) {
       console.error('Get profile error:', error);
-      res.status(500).json({ error: 'Internal server error' });
+      errorResponse(res, 'Internal server error');
     }
   },
 
@@ -112,18 +103,18 @@ const userController = {
 
       // Verify user is updating their own profile
       if (req.user && req.user.id !== parseInt(id)) {
-        return res.status(403).json({ error: 'Not authorized to update this profile' });
+        return errorResponse(res, 'Not authorized to update this profile', 403);
       }
 
       const user = await User.updateProfile(id, { profile_photo_url, bio });
       if (!user) {
-        return res.status(404).json({ error: 'User not found' });
+        return notFound(res, 'User');
       }
 
       res.json(user);
     } catch (error) {
       console.error('Update profile error:', error);
-      res.status(500).json({ error: 'Internal server error' });
+      errorResponse(res, 'Internal server error');
     }
   },
 
@@ -135,21 +126,21 @@ const userController = {
 
       // Verify user is updating their own status
       if (req.user && req.user.id !== parseInt(id)) {
-        return res.status(403).json({ error: 'Not authorized to update this status' });
+        return errorResponse(res, 'Not authorized to update this status', 403);
       }
 
       const user = await User.updateStatus(id, { status, status_message });
       if (!user) {
-        return res.status(404).json({ error: 'User not found' });
+        return notFound(res, 'User');
       }
 
       res.json(user);
     } catch (error) {
       console.error('Update status error:', error);
       if (error.message.includes('Invalid status')) {
-        return res.status(400).json({ error: error.message });
+        return errorResponse(res, error.message, 400);
       }
-      res.status(500).json({ error: 'Internal server error' });
+      errorResponse(res, 'Internal server error');
     }
   },
 
@@ -161,7 +152,7 @@ const userController = {
       res.json(users);
     } catch (error) {
       console.error('List users error:', error);
-      res.status(500).json({ error: 'Internal server error' });
+      errorResponse(res, 'Internal server error');
     }
   },
 
@@ -171,17 +162,17 @@ const userController = {
       const { email, password } = req.body;
 
       if (!email || !password) {
-        return res.status(400).json({ error: 'Email and password are required' });
+        return errorResponse(res, 'Email and password are required', 400);
       }
 
       const user = await User.findByEmail(email);
       if (!user) {
-        return res.status(401).json({ error: 'Invalid credentials' });
+        return unauthorized(res, 'Invalid credentials');
       }
 
       const isValid = await User.verifyPassword(password, user.password_hash);
       if (!isValid) {
-        return res.status(401).json({ error: 'Invalid credentials' });
+        return unauthorized(res, 'Invalid credentials');
       }
 
       // Return user without password_hash
@@ -189,7 +180,7 @@ const userController = {
       res.json(userWithoutPassword);
     } catch (error) {
       console.error('Verify credentials error:', error);
-      res.status(500).json({ error: 'Internal server error' });
+      errorResponse(res, 'Internal server error');
     }
   }
 };

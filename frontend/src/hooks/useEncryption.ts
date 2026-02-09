@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { userApi } from '../services/api';
-import { encryptionService, KeyPair } from '../services/encryption';
+import { encryptionService, initializeE2EE, KeyPair } from '../services/encryption';
 
 interface UseEncryptionReturn {
   keyPair: KeyPair | null;
@@ -67,27 +67,12 @@ export const useEncryption = (userId: number | null): UseEncryptionReturn => {
       throw new Error('User not authenticated');
     }
 
-    try {
-      // Generate new key pair
-      const newKeyPair = encryptionService.generateKeyPair();
-
-      // Upload public key to server
-      await userApi.uploadPublicKey({
-        device_id: newKeyPair.deviceId,
-        public_key: newKeyPair.publicKey,
-        key_fingerprint: newKeyPair.fingerprint,
-      });
-
-      // Save to localStorage
-      encryptionService.saveKeyPair(newKeyPair);
-
-      setKeyPair(newKeyPair);
-      setIsEncryptionEnabled(true);
-
-      console.log('Encryption keys generated and uploaded');
-    } catch (error) {
-      console.error('Failed to generate encryption keys:', error);
-      throw error;
+    const result = await initializeE2EE(userApi.uploadPublicKey);
+    if (result.keyPair) {
+      setKeyPair(result.keyPair);
+      setIsEncryptionEnabled(result.isEnabled);
+    } else {
+      throw new Error('Failed to generate encryption keys');
     }
   }, [userId]);
 

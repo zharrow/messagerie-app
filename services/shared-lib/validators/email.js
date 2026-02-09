@@ -1,6 +1,6 @@
 /**
- * Email validation utilities
- * Shared across all services that handle user emails
+ * Validation utilities
+ * Shared across all services
  */
 
 /**
@@ -61,8 +61,24 @@ function validateAndNormalize(email) {
   };
 }
 
+/**
+ * Validate password strength
+ * At least 8 characters, one uppercase, one lowercase, one number
+ * @param {string} password - Password to validate
+ * @returns {boolean} True if valid password
+ */
+function isValidPassword(password) {
+  if (!password || typeof password !== 'string') {
+    return false;
+  }
+
+  const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
+  return passwordRegex.test(password);
+}
+
 module.exports = {
   isValidEmail,
   normalizeEmail,
-  validateAndNormalize
+  validateAndNormalize,
+  isValidPassword
 };

@@ -1,10 +1,11 @@
 const express = require('express');
 const router = express.Router();
 const authController = require('../controllers/authController');
-const internalMiddleware = require('../middlewares/internal');
+const { middlewares } = require('../shared-lib');
+const { internalOnly } = middlewares.internalAuth;
 
 // All internal routes require internal middleware
-router.use(internalMiddleware);
+router.use(internalOnly);
 
 // Validate token (called by User Service)
 router.post('/validate-token', authController.validateToken);
