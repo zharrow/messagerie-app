@@ -1,6 +1,10 @@
 export { useConversations } from './useConversations';
 export { useGifSearch } from './useGifSearch';
 export { useMessages } from './useMessages';
+export { useMessageInput } from './useMessageInput';
+export { useMessageEdit } from './useMessageEdit';
+export { useMessageDeletion } from './useMessageDeletion';
+export { useMessageReactions } from './useMessageReactions';
 export { useSocketEvents } from './useSocketEvents';
 export { useTypingIndicator } from './useTypingIndicator';
 export { useUserCache } from './useUserCache';

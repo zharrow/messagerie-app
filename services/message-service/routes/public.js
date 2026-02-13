@@ -1,11 +1,13 @@
 const express = require('express');
 const router = express.Router();
 const messageController = require('../controllers/messageController');
-const { authMiddleware } = require('../middlewares/auth');
+const { middlewares } = require('../shared-lib');
+const { authMiddleware } = middlewares.auth;
+const { healthCheck } = middlewares.health;
 const { upload, getFileUrl, uploadsDir } = require('../services/uploadService');
 
 // Health check - no auth required
-router.get('/health', messageController.health);
+router.get('/health', healthCheck('message-service'));
 
 // Serve uploaded files - no auth required (files have unique random names)
 router.use('/uploads', express.static(uploadsDir));

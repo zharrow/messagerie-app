@@ -1,5 +1,6 @@
 const { Server } = require('socket.io');
-const { validateSocketToken } = require('../middlewares/auth');
+const { middlewares } = require('../shared-lib');
+const { validateSocketToken } = middlewares.auth;
 const Conversation = require('../models/Conversation');
 
 let io;

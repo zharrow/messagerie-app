@@ -6,13 +6,16 @@ WORKDIR /app
 RUN apk add --no-cache python3 make g++
 
 # Copy package files
-COPY package*.json ./
+COPY user-service/package*.json ./
 
 # Install dependencies and rebuild native modules
 RUN npm install --omit=dev && npm rebuild bcrypt --build-from-source
 
+# Copy shared-lib first
+COPY shared-lib/ ./shared-lib/
+
 # Copy source code
-COPY . .
+COPY user-service/ .
 
 # Expose port
 EXPOSE 3001

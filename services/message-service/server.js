@@ -8,8 +8,7 @@ const publicRoutes = require('./routes/public');
 const { initializeSocket } = require('./services/socketService');
 const swaggerSpec = require('./config/swagger');
 
-const app = express();
-const server = http.createServer(app);
+const { app, server } = createApp();
 const PORT = process.env.PORT || 3003;
 
 // Middlewares
@@ -26,18 +25,14 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
 // Routes
 app.use('/messages', publicRoutes);
 
-// Initialize database and WebSocket, then start server
-connectDB()
-  .then(() => {
-    // Initialize Socket.io
+// Initialize and start
+startServer({
+  server,
+  port: PORT,
+  serviceName: 'Message Service',
+  initFn: async () => {
+    await connectDB();
     initializeSocket(server);
-
-    server.listen(PORT, () => {
-      console.log(`Message Service running on port ${PORT}`);
-      console.log(`WebSocket available at ws://localhost:${PORT}/messages/socket.io`);
-    });
-  })
-  .catch((err) => {
-    console.error('Failed to initialize:', err);
-    process.exit(1);
-  });
+    console.log(`WebSocket available at ws://localhost:${PORT}/messages/socket.io`);
+  }
+});

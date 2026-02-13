@@ -2,10 +2,12 @@ const express = require('express');
 const router = express.Router();
 const userController = require('../controllers/userController');
 const keyController = require('../controllers/keyController');
-const authMiddleware = require('../middlewares/auth');
+const { middlewares } = require('../shared-lib');
+const { authMiddleware } = middlewares.auth;
+const { healthCheck } = middlewares.health;
 
 // Health check - no auth required
-router.get('/health', userController.health);
+router.get('/health', healthCheck('user-service'));
 
 // Registration - no auth required
 router.post('/register', userController.register);

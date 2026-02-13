@@ -88,7 +88,12 @@ export const useMessageDecryption = (userId: number | undefined) => {
       const keyPair = encryptionService.loadKeyPair();
       if (!keyPair) {
         console.error('[E2EE] Clés de déchiffrement non disponibles');
-        return '[Message chiffré - Clés manquantes]';
+        const errorMsg = '[Message chiffré - Clés manquantes]';
+        setDecryptedMessages((prev: DecryptedMessageCache) => ({
+          ...prev,
+          [message._id]: errorMsg
+        }));
+        return errorMsg;
       }
 
       // Récupérer la clé publique de l'expéditeur en utilisant son deviceId
@@ -98,7 +103,12 @@ export const useMessageDecryption = (userId: number | undefined) => {
       const senderPublicKey = await getSenderPublicKey(message.from, senderDeviceId);
       if (!senderPublicKey) {
         console.error('[E2EE] Clé publique de l\'expéditeur introuvable');
-        return '[Message chiffré - Clé expéditeur manquante]';
+        const errorMsg = '[Message chiffré - Clé expéditeur manquante]';
+        setDecryptedMessages((prev: DecryptedMessageCache) => ({
+          ...prev,
+          [message._id]: errorMsg
+        }));
+        return errorMsg;
       }
 
       // Déchiffrer le message
@@ -119,11 +129,21 @@ export const useMessageDecryption = (userId: number | undefined) => {
         return decryptedContent;
       } else {
         console.error('[E2EE] Échec du déchiffrement');
-        return '[Message chiffré - Échec du déchiffrement]';
+        const errorMsg = '[Message chiffré - Échec du déchiffrement]';
+        setDecryptedMessages((prev: DecryptedMessageCache) => ({
+          ...prev,
+          [message._id]: errorMsg
+        }));
+        return errorMsg;
       }
     } catch (error) {
       console.error('[E2EE] Erreur lors du déchiffrement:', error);
-      return '[Message chiffré - Erreur]';
+      const errorMsg = '[Message chiffré - Erreur]';
+      setDecryptedMessages((prev: DecryptedMessageCache) => ({
+        ...prev,
+        [message._id]: errorMsg
+      }));
+      return errorMsg;
     }
   };
 
@@ -152,26 +172,20 @@ export const useMessageDecryption = (userId: number | undefined) => {
       return message.content;
     }
 
-    // Si le message est déjà déchiffré, le retourner
+    // Si le message est déjà déchiffré ou en erreur, le retourner
     if (decryptedMessages[message._id]) {
       return decryptedMessages[message._id];
     }
 
     // Sinon, déclencher le déchiffrement de manière asynchrone
+    // Le cache sera mis à jour par decryptMessage (succès ou erreur)
     decryptMessage(message).then(content => {
-      if (content && content !== decryptedMessages[message._id]) {
-        // Le résultat sera mis en cache et déclenchera un re-render
-        console.log(`[E2EE] Message ${message._id} déchiffré avec succès`);
-      } else if (!content) {
-        // Si le déchiffrement échoue, mettre un message d'erreur en cache
-        console.error(`[E2EE] Échec du déchiffrement pour ${message._id}`);
-        setDecryptedMessages((prev: DecryptedMessageCache) => ({
-          ...prev,
-          [message._id]: '[Message chiffré - Impossible à déchiffrer]'
-        }));
+      if (content) {
+        console.log(`[E2EE] Message ${message._id} traité:`, content.substring(0, 30) + '...');
       }
     }).catch(err => {
       console.error('[E2EE] Erreur lors du déchiffrement automatique:', err);
+      // Failsafe: mettre en cache si decryptMessage n'a pas pu le faire
       setDecryptedMessages((prev: DecryptedMessageCache) => ({
         ...prev,
         [message._id]: '[Message chiffré - Erreur technique]'

@@ -1,4 +1,6 @@
 const Conversation = require('../models/Conversation');
+const { utils } = require('../shared-lib');
+const { error: errorResponse, notFound } = utils.response;
 
 const messageController = {
   // GET /messages/conversations - Get all conversations for a user
@@ -15,7 +17,7 @@ const messageController = {
       res.json(conversations);
     } catch (error) {
       console.error('Get conversations error:', error);
-      res.status(500).json({ error: 'Internal server error' });
+      errorResponse(res, 'Internal server error');
     }
   },
 
@@ -31,7 +33,7 @@ const messageController = {
       }).lean();
 
       if (!conversation) {
-        return res.status(404).json({ error: 'Conversation not found' });
+        return notFound(res, 'Conversation');
       }
 
       // Filter out deleted messages and convert Map fields to plain objects
@@ -54,7 +56,7 @@ const messageController = {
       res.json(conversation);
     } catch (error) {
       console.error('Get conversation error:', error);
-      res.status(500).json({ error: 'Internal server error' });
+      errorResponse(res, 'Internal server error');
     }
   },
 
@@ -65,14 +67,14 @@ const messageController = {
       const { participants, isGroup, groupName } = req.body;
 
       if (!participants || !Array.isArray(participants) || participants.length === 0) {
-        return res.status(400).json({ error: 'Participants are required' });
+        return errorResponse(res, 'Participants are required', 400);
       }
 
       // Add current user to participants if not included
       const allParticipants = [...new Set([userId, ...participants])];
 
       if (!isGroup && allParticipants.length !== 2) {
-        return res.status(400).json({ error: 'Private conversation requires exactly 2 participants' });
+        return errorResponse(res, 'Private conversation requires exactly 2 participants', 400);
       }
 
       if (isGroup && allParticipants.length < 2) {
@@ -105,7 +107,7 @@ const messageController = {
       res.status(201).json(conversation);
     } catch (error) {
       console.error('Create conversation error:', error);
-      res.status(500).json({ error: 'Internal server error' });
+      errorResponse(res, 'Internal server error');
     }
   },
 
@@ -117,7 +119,7 @@ const messageController = {
       const { content, attachments } = req.body;
 
       if (!content) {
-        return res.status(400).json({ error: 'Message content is required' });
+        return errorResponse(res, 'Message content is required', 400);
       }
 
       const conversation = await Conversation.findOne({
@@ -126,7 +128,7 @@ const messageController = {
       });
 
       if (!conversation) {
-        return res.status(404).json({ error: 'Conversation not found' });
+        return notFound(res, 'Conversation');
       }
 
       const message = {
@@ -152,7 +154,7 @@ const messageController = {
       res.status(201).json(savedMessage);
     } catch (error) {
       console.error('Send message error:', error);
-      res.status(500).json({ error: 'Internal server error' });
+      errorResponse(res, 'Internal server error');
     }
   },
 
@@ -168,7 +170,7 @@ const messageController = {
       });
 
       if (!conversation) {
-        return res.status(404).json({ error: 'Conversation not found' });
+        return notFound(res, 'Conversation');
       }
 
       // Mark all messages as read by this user
@@ -183,7 +185,7 @@ const messageController = {
       res.json({ message: 'Messages marked as read' });
     } catch (error) {
       console.error('Mark as read error:', error);
-      res.status(500).json({ error: 'Internal server error' });
+      errorResponse(res, 'Internal server error');
     }
   },
 
@@ -201,7 +203,7 @@ const messageController = {
       });
 
       if (!conversation) {
-        return res.status(404).json({ error: 'Group conversation not found' });
+        return notFound(res, 'Group conversation');
       }
 
       // Any member can add participants (not just admin)
@@ -209,7 +211,7 @@ const messageController = {
       const toAdd = participantIds || (participantId ? [participantId] : []);
 
       if (toAdd.length === 0) {
-        return res.status(400).json({ error: 'No participants to add' });
+        return errorResponse(res, 'No participants to add', 400);
       }
 
       // Filter out users already in conversation
@@ -218,7 +220,7 @@ const messageController = {
       );
 
       if (newParticipants.length === 0) {
-        return res.status(400).json({ error: 'All users are already in the conversation' });
+        return errorResponse(res, 'All users are already in the conversation', 400);
       }
 
       conversation.participants.push(...newParticipants);
@@ -227,7 +229,7 @@ const messageController = {
       res.json(conversation);
     } catch (error) {
       console.error('Add participant error:', error);
-      res.status(500).json({ error: 'Internal server error' });
+      errorResponse(res, 'Internal server error');
     }
   },
 
@@ -244,12 +246,12 @@ const messageController = {
       });
 
       if (!conversation) {
-        return res.status(404).json({ error: 'Group conversation not found' });
+        return notFound(res, 'Group conversation');
       }
 
       // Admin can remove anyone, users can only remove themselves
       if (conversation.groupAdmin !== userId && userId !== parseInt(participantId)) {
-        return res.status(403).json({ error: 'Not authorized' });
+        return errorResponse(res, 'Not authorized', 403);
       }
 
       conversation.participants = conversation.participants.filter(
@@ -261,7 +263,7 @@ const messageController = {
       res.json(conversation);
     } catch (error) {
       console.error('Remove participant error:', error);
-      res.status(500).json({ error: 'Internal server error' });
+      errorResponse(res, 'Internal server error');
     }
   },
 
@@ -277,7 +279,7 @@ const messageController = {
       });
 
       if (!conversation) {
-        return res.status(404).json({ error: 'Conversation not found' });
+        return notFound(res, 'Conversation');
       }
 
       // Allow any participant to delete (especially for /fire command)
@@ -287,7 +289,7 @@ const messageController = {
       res.json({ message: 'Conversation deleted successfully' });
     } catch (error) {
       console.error('Delete conversation error:', error);
-      res.status(500).json({ error: 'Internal server error' });
+      errorResponse(res, 'Internal server error');
     }
   },
 
@@ -307,7 +309,7 @@ const messageController = {
       const { q, conversationId } = req.query;
 
       if (!q || q.length < 2) {
-        return res.status(400).json({ error: 'Search query must be at least 2 characters' });
+        return errorResponse(res, 'Search query must be at least 2 characters', 400);
       }
 
       // Build query
@@ -349,7 +351,7 @@ const messageController = {
       res.json(results.slice(0, 50)); // Limit to 50 results
     } catch (error) {
       console.error('Search messages error:', error);
-      res.status(500).json({ error: 'Internal server error' });
+      errorResponse(res, 'Internal server error');
     }
   },
 
@@ -366,7 +368,7 @@ const messageController = {
       });
 
       if (!conversation) {
-        return res.status(404).json({ error: 'Conversation not found' });
+        return notFound(res, 'Conversation');
       }
 
       let messages = [...conversation.messages];
@@ -391,7 +393,7 @@ const messageController = {
       });
     } catch (error) {
       console.error('Get messages error:', error);
-      res.status(500).json({ error: 'Internal server error' });
+      errorResponse(res, 'Internal server error');
     }
   }
 };
